@@ -2,7 +2,7 @@ package com.adventist.backend.books;
 
 import java.math.BigDecimal;
 
-public record CreateBookRequest(
+public record UpdateBookRequest(
         String title,
         String author,
         String isbn,

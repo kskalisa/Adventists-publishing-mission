@@ -1,18 +1,54 @@
-import { Calendar, Download, RefreshCw } from 'lucide-react'
+import { Calendar, Download, Package, RefreshCw, ShoppingCart, TrendingUp } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
-import { Button, Card, PageHeader, Progress, StatCard } from '../../components/ui'
+import { Badge, Button, Card, PageHeader, Progress, SimpleTable, StatCard } from '../../components/ui'
+import { formatDate, listBooks, listSales, listStockAdjustments, money } from '../../lib/api'
+import type { Book, Sale, StockAdjustment } from '../../lib/api'
+
+function Bars({ values }: { values: number[] }) {
+  const safeValues = values.length ? values : [0, 0, 0, 0, 0, 0]
+  const max = Math.max(...safeValues, 1)
+  return <div className="flex h-64 items-end gap-4">{safeValues.slice(0, 8).map((value, index) => <div className="flex flex-1 flex-col items-center gap-3" key={`${value}-${index}`}><div className="w-full rounded-t bg-blue-700" style={{ height: `${Math.max((value / max) * 100, 8)}%` }} /><span className="text-xs font-medium text-slate-500">#{index + 1}</span></div>)}</div>
+}
 
 export function Reports({ active, onNavigate }: PageProps) {
+  const [books, setBooks] = useState<Book[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
+  const [error, setError] = useState('')
+
+  const load = () => {
+    setError('')
+    Promise.all([listBooks(), listSales(), listStockAdjustments()])
+      .then(([books, sales, adjustments]) => { setBooks(books); setSales(sales); setAdjustments(adjustments) })
+      .catch((error) => setError(error instanceof Error ? error.message : 'Unable to load analytics.'))
+  }
+
+  useEffect(load, [])
+
+  const revenue = sales.reduce((sum, sale) => sum + sale.total, 0)
+  const booksSold = sales.reduce((sum, sale) => sum + sale.items.reduce((inner, item) => inner + item.quantity, 0), 0)
+  const stockValue = books.reduce((sum, book) => sum + book.price * book.stockQuantity, 0)
+  const lowStock = books.filter((book) => book.status !== 'IN_STOCK')
+  const categoryCounts = useMemo(() => [...books.reduce((map, book) => map.set(book.category, (map.get(book.category) ?? 0) + 1), new Map<string, number>()).entries()], [books])
+  const topTitles = useMemo(() => [...sales.reduce((map, sale) => {
+    sale.items.forEach((item) => map.set(item.title, (map.get(item.title) ?? 0) + item.quantity))
+    return map
+  }, new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 6), [sales])
+
   return (
     <Shell active={active} onNavigate={onNavigate}>
-      <PageHeader title="Reports & Analytics" subtitle="Generate insights across sales, inventory, and distribution." actions={<><Button variant="secondary" icon={Calendar}>Last 30 Days</Button><Button icon={Download}>Export Data</Button></>} />
-      <div className="mb-8 flex gap-8 overflow-x-auto border-b border-slate-200 text-sm font-medium text-slate-400"><span className="border-b-2 border-blue-700 px-6 py-4 text-blue-800">Sales Performance</span><span className="py-4">Inventory Health</span><span className="py-4">Publishing Output</span><span className="py-4">Distribution Logs</span></div>
-      <Card className="mb-6 p-4"><div className="flex flex-wrap gap-4"><Button variant="secondary">All Branches</Button><Button variant="secondary">All Books</Button><Button variant="secondary" icon={RefreshCw}>Refresh</Button></div></Card>
-      <div className="grid gap-6 md:grid-cols-4">{['Total Revenue|$124,500|+12%', 'Books Sold|14,230|+5%', 'Inventory Turnover|4.2x|-1.5%', 'Active Agents|45|0%'].map((s) => { const [label, value, helper] = s.split('|'); return <StatCard key={label} stat={{ label, value, helper }} /> })}</div>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-6"><div className="mb-8 flex justify-between"><h2 className="font-semibold">Sales vs Target</h2><span className="text-xs text-slate-400">Target: $120,000</span></div><div className="flex h-72 items-end gap-4">{['h-28','h-40','h-32','h-52','h-44','h-64','h-56','h-72'].map((height, i) => <div className="flex flex-1 flex-col items-center gap-3" key={height}><div className={`w-full rounded-t bg-[#253f91] ${height}`} /><span className="text-xs text-slate-400">Week {i + 1}</span></div>)}</div></Card>
-        <Card className="p-6"><h2 className="mb-20 font-semibold">Sales by Category</h2><Progress label="Spirit of Prophecy" value="45%" width="w-[45%]" color="bg-[#253f91]" /><Progress label="Health & Wellness" value="30%" width="w-[30%]" color="bg-blue-500" /><Progress label="Bibles" value="15%" width="w-[15%]" color="bg-sky-300" /><Progress label="Other" value="10%" width="w-[10%]" color="bg-slate-300" /></Card>
+      <PageHeader title="Analytics" subtitle="Live sales, inventory, and stock movement insights." actions={<><Button variant="secondary" icon={Calendar}>Live Data</Button><Button variant="secondary" icon={RefreshCw} onClick={load}>Refresh</Button><Button icon={Download} onClick={() => window.print()}>Export</Button></>} />
+      {error && <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+      <div className="grid gap-6 md:grid-cols-4"><StatCard stat={{ label: 'Total Revenue', value: money(revenue), helper: `${sales.length} sale(s)`, icon: TrendingUp, tone: 'green' }} /><StatCard stat={{ label: 'Books Sold', value: booksSold.toString(), helper: 'Units sold', icon: ShoppingCart, tone: 'blue' }} /><StatCard stat={{ label: 'Stock Value', value: money(stockValue), helper: `${books.length} title(s)`, icon: Package }} /><StatCard stat={{ label: 'Stock Alerts', value: lowStock.length.toString(), helper: 'Low or out of stock', tone: lowStock.length ? 'orange' : 'green' }} /></div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <Card className="p-6"><div className="mb-8 flex justify-between"><div><h2 className="font-semibold text-blue-950">Sales Performance</h2><p className="text-sm text-slate-500">Recent invoice totals from the API.</p></div><Badge tone="green">{money(revenue)}</Badge></div><Bars values={sales.map((sale) => sale.total)} /></Card>
+        <Card className="p-6"><h2 className="mb-6 font-semibold text-blue-950">Inventory by Category</h2>{categoryCounts.map(([category, count]) => <Progress key={category} label={category} value={`${count}`} width={Math.min((count / Math.max(books.length, 1)) * 100, 100)} color="bg-blue-700" />)}</Card>
+      </div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <Card className="p-6"><h2 className="mb-5 font-semibold text-blue-950">Top Selling Titles</h2>{topTitles.length ? topTitles.map(([title, count]) => <Progress key={title} label={title} value={`${count} sold`} width={Math.min(count * 12, 100)} color="bg-emerald-600" />) : <p className="text-sm text-slate-500">No sales recorded yet.</p>}</Card>
+        <Card className="p-6"><h2 className="mb-5 font-semibold text-blue-950">Recent Stock Movements</h2><SimpleTable headers={['Book', 'Type', 'Qty', 'Date']} rows={adjustments.slice(0, 6).map((item) => [item.bookTitle, item.type.replaceAll('_', ' '), item.quantityDelta > 0 ? `+${item.quantityDelta}` : item.quantityDelta.toString(), formatDate(item.createdAt)])} /></Card>
       </div>
     </Shell>
   )

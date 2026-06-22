@@ -29,4 +29,10 @@ public class UserController {
     UserDto createUser(@RequestBody CreateUserRequest request) {
         return service.createUser(request);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteUser(@PathVariable Long id) {
+        service.deleteUser(id);
+    }
 }

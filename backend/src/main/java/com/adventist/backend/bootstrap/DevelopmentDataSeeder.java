@@ -12,6 +12,7 @@ import com.adventist.backend.sales.SaleStatus;
 import com.adventist.backend.users.AppUser;
 import com.adventist.backend.users.AppUserRepository;
 import com.adventist.backend.users.UserRole;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,12 +34,14 @@ public class DevelopmentDataSeeder {
         private final BookRepository bookRepository;
         private final CustomerRepository customerRepository;
         private final SaleRepository saleRepository;
+        private final PasswordEncoder passwordEncoder;
 
-        SeedService(AppUserRepository userRepository, BookRepository bookRepository, CustomerRepository customerRepository, SaleRepository saleRepository) {
+        SeedService(AppUserRepository userRepository, BookRepository bookRepository, CustomerRepository customerRepository, SaleRepository saleRepository, PasswordEncoder passwordEncoder) {
             this.userRepository = userRepository;
             this.bookRepository = bookRepository;
             this.customerRepository = customerRepository;
             this.saleRepository = saleRepository;
+            this.passwordEncoder = passwordEncoder;
         }
 
         @Transactional
@@ -48,10 +51,10 @@ public class DevelopmentDataSeeder {
             }
 
             List<AppUser> users = userRepository.saveAll(List.of(
-                    new AppUser("Moise Arihafi", "admin@adventist.rw", UserRole.ADMIN, "{noop}admin123"),
-                    new AppUser("Jean-Claude N.", "sales@adventist.rw", UserRole.SALES, "{noop}sales123"),
-                    new AppUser("Sarah Uwase", "inventory@adventist.rw", UserRole.INVENTORY_MANAGER, "{noop}inventory123"),
-                    new AppUser("Eric Manzi", "coordinator@adventist.rw", UserRole.COORDINATOR, "{noop}coordinator123")
+                    new AppUser("Moise Arihafi", "admin@adventist.rw", UserRole.ADMIN, passwordEncoder.encode("admin123")),
+                    new AppUser("Jean-Claude N.", "sales@adventist.rw", UserRole.SALES, passwordEncoder.encode("sales123")),
+                    new AppUser("Sarah Uwase", "inventory@adventist.rw", UserRole.INVENTORY_MANAGER, passwordEncoder.encode("inventory123")),
+                    new AppUser("Eric Manzi", "coordinator@adventist.rw", UserRole.COORDINATOR, passwordEncoder.encode("coordinator123"))
             ));
 
             List<Book> books = bookRepository.saveAll(List.of(

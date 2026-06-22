@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeftRight, BarChart3, BookOpen, Box, Clock3, LayoutDashboard, LibraryBig, Package, Printer, ShoppingCart, Truck, Users, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, BarChart3, Box, Clock3, LayoutDashboard, LibraryBig, Package, Printer, ShoppingCart, Users, WalletCards } from 'lucide-react'
 import type { NavItem } from '../types/navigation'
 
 export const navItems: NavItem[] = [
@@ -6,9 +6,8 @@ export const navItems: NavItem[] = [
   { id: 'inventory', label: 'Inventory', icon: Box, group: 'management' },
   { id: 'sales', label: 'Sales', icon: ShoppingCart, group: 'management' },
   { id: 'customers', label: 'Customers', icon: Users, group: 'management' },
-  { id: 'publishing', label: 'Publishing', icon: BookOpen, group: 'management' },
-  { id: 'distribution', label: 'Distribution', icon: Truck, group: 'management' },
-  { id: 'reports', label: 'Reports', icon: BarChart3, group: 'analysis' },
+  { id: 'users', label: 'Users & Access', icon: Users, group: 'management' },
+  { id: 'reports', label: 'Analytics', icon: BarChart3, group: 'analysis' },
 ]
 
 export const salesNavItems: NavItem[] = [

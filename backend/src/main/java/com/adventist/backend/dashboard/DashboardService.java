@@ -9,6 +9,7 @@ import com.adventist.backend.sales.SaleDto;
 import com.adventist.backend.sales.SaleRepository;
 import com.adventist.backend.users.AppUserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -28,6 +29,7 @@ public class DashboardService {
         this.saleRepository = saleRepository;
     }
 
+    @Transactional(readOnly = true)
     public DashboardSummary summary() {
         List<Book> books = bookRepository.findAll();
         long lowStockCount = books.stream().filter(book -> book.getStatus() == BookStatus.LOW_STOCK).count();

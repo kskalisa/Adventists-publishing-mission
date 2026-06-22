@@ -1,13 +1,38 @@
 import { Image, Settings as SettingsIcon, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { readImageAsDataUrl } from '../../lib/files'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
 import { Button, Card, PageHeader } from '../../components/ui'
 
 function SettingsCard({ title, subtitle, fields, upload = false }: { title: string; subtitle: string; fields: string[]; upload?: boolean }) {
+  const [logo, setLogo] = useState('')
+  const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (upload) {
+      setLogo(window.localStorage.getItem('adventist-logo') ?? '')
+    }
+  }, [upload])
+
+  const chooseLogo = async (file: File | undefined) => {
+    if (!file) return
+    setError('')
+    try {
+      const dataUrl = await readImageAsDataUrl(file)
+      window.localStorage.setItem('adventist-logo', dataUrl)
+      setLogo(dataUrl)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to upload logo.')
+    }
+  }
+
   return (
     <Card className="p-6">
       <h2 className="text-lg font-semibold">{title}</h2><p className="mb-6 text-sm text-slate-400">{subtitle}</p>
-      {upload && <div className="mb-6 flex items-center gap-6"><div className="grid size-20 place-items-center rounded-md border border-dashed border-slate-300 bg-blue-50"><Image className="size-6 text-slate-400" /></div><Button variant="secondary" icon={Upload}>Upload New Logo</Button></div>}
+      {upload && <div className="mb-6 flex items-center gap-6"><div className="grid size-20 place-items-center overflow-hidden rounded-md border border-dashed border-slate-300 bg-blue-50">{logo ? <img className="h-full w-full object-cover" src={logo} alt="Organization logo" /> : <Image className="size-6 text-slate-400" />}</div><input ref={inputRef} className="sr-only" accept="image/png,image/jpeg,image/webp" type="file" onChange={(event) => chooseLogo(event.target.files?.[0])} /><Button variant="secondary" icon={Upload} onClick={() => inputRef.current?.click()}>Upload New Logo</Button></div>}
+      {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
       <div className="grid gap-6 md:grid-cols-2">{fields.map((field, index) => { const [label, value] = field.split('|'); return <label className={index === 2 && fields.length === 3 ? 'md:col-span-2' : ''} key={label}><span className="mb-2 block text-sm font-medium">{label}</span><input className="h-10 w-full rounded-md border border-slate-200 px-4 text-sm" value={value} readOnly /></label> })}</div>
     </Card>
   )

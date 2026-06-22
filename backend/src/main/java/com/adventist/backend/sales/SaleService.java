@@ -27,12 +27,14 @@ public class SaleService {
         this.userRepository = userRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<SaleDto> listRecentSales() {
         return saleRepository.findTop10ByOrderByCreatedAtDesc().stream().map(SaleDto::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public SaleDto getSale(Long id) {
-        return SaleDto.from(saleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("sale not found")));
+        return SaleDto.from(saleRepository.findDetailedById(id).orElseThrow(() -> new ResourceNotFoundException("sale not found")));
     }
 
     @Transactional

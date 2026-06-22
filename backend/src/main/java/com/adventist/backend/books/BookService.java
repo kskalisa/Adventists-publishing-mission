@@ -42,7 +42,42 @@ public class BookService {
             throw new IllegalArgumentException("isbn is already registered");
         }
         Book book = new Book(request.title().trim(), request.author().trim(), request.isbn().trim(), request.category().trim(), request.price(), stockQuantity, reorderLevel);
+        if (request.coverImageUrl() != null && !request.coverImageUrl().isBlank()) {
+            book.setCoverImageUrl(request.coverImageUrl());
+        }
         return BookDto.from(repository.save(book));
+    }
+
+    @Transactional
+    public BookDto updateBook(Long id, UpdateBookRequest request) {
+        Book book = findBook(id);
+        requireText(request.title(), "title");
+        requireText(request.author(), "author");
+        requireText(request.isbn(), "isbn");
+        requireText(request.category(), "category");
+        if (request.price() == null || request.price().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("price must be zero or greater");
+        }
+        int stockQuantity = request.stockQuantity() == null ? 0 : request.stockQuantity();
+        int reorderLevel = request.reorderLevel() == null ? 10 : request.reorderLevel();
+        if (stockQuantity < 0 || reorderLevel < 0) {
+            throw new IllegalArgumentException("stock values must be zero or greater");
+        }
+        book.setTitle(request.title().trim());
+        book.setAuthor(request.author().trim());
+        book.setIsbn(request.isbn().trim());
+        book.setCategory(request.category().trim());
+        book.setPrice(request.price());
+        book.setStockQuantity(stockQuantity);
+        book.setReorderLevel(reorderLevel);
+        book.setCoverImageUrl(request.coverImageUrl());
+        return BookDto.from(book);
+    }
+
+    @Transactional
+    public void deleteBook(Long id) {
+        Book book = findBook(id);
+        repository.delete(book);
     }
 
     @Transactional

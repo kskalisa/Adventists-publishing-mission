@@ -1,8 +1,10 @@
 import { AlertTriangle, Package, Zap } from 'lucide-react'
-import { people } from '../../data/assets'
+import { useEffect, useState } from 'react'
+import { getDashboardSummary, money } from '../../lib/api'
+import type { DashboardSummary } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
-import { Badge, Card, SimpleTable, StatCard, UserCell } from '../../components/ui'
+import { Badge, Card, SimpleTable, StatCard } from '../../components/ui'
 
 function Announcement({ title, tone }: { title: string; tone: 'gray' | 'blue' | 'dashed' }) {
   const styles = {
@@ -21,17 +23,26 @@ function Announcement({ title, tone }: { title: string; tone: 'gray' | 'blue' | 
 }
 
 export function Dashboard({ active, onNavigate }: PageProps) {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    getDashboardSummary().then(setSummary).catch((error) => setError(error instanceof Error ? error.message : 'Unable to load dashboard.'))
+  }, [])
+
   const stats = [
-    { label: 'Total Users', value: '24,592' },
-    { label: 'Total Titles', value: '1,483' },
-    { label: 'Monthly Sales', value: '$142,300' },
-    { label: 'Active Branches', value: '18' },
+    { label: 'Total Users', value: (summary?.totalUsers ?? 0).toLocaleString() },
+    { label: 'Total Titles', value: (summary?.totalTitles ?? 0).toLocaleString() },
+    { label: 'Monthly Sales', value: money(summary?.monthlyRevenue ?? 0) },
+    { label: 'Customers', value: (summary?.totalCustomers ?? 0).toLocaleString() },
   ]
+  const stockTotal = summary ? summary.totalTitles : 0
+  const inventoryPercent = stockTotal ? Math.round(((stockTotal - summary!.lowStockCount - summary!.outOfStockCount) / stockTotal) * 100) : 0
 
   return (
     <Shell active={active} onNavigate={onNavigate}>
       <div className="grid gap-6 xl:grid-cols-[1fr_270px]">
         <div className="space-y-6">
+          {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}</div>
           <div className="grid gap-6 lg:grid-cols-[2fr_220px]">
             <Card className="p-5">
@@ -54,7 +65,7 @@ export function Dashboard({ active, onNavigate }: PageProps) {
             </Card>
             <Card className="flex flex-col items-center justify-center p-5">
               <h2 className="mb-16 self-start font-semibold">Inventory Status</h2>
-              <p className="text-3xl font-bold">85%</p>
+              <p className="text-3xl font-bold">{inventoryPercent}%</p>
               <p className="text-xs text-slate-400">In Stock</p>
               <div className="mt-16 flex gap-4 text-xs text-slate-600">
                 <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-blue-600" />Available</span>
@@ -77,11 +88,10 @@ export function Dashboard({ active, onNavigate }: PageProps) {
               <h2 className="p-5 font-semibold">Recent Activity</h2>
               <div className="divide-y divide-slate-100">
                 {[
-                  ['New order #8291', '2 mins ago', '$120.00'],
-                  ['New customer registered', '15 mins ago', ''],
-                  ['Stock updated: Health Power', '1 hour ago', '+50'],
+                  ...(summary?.recentSales ?? []).map((sale) => [`Order #${sale.id}`, new Date(sale.createdAt).toLocaleString(), money(sale.total)]),
+                  ...(!summary?.recentSales.length ? [['No recent sales yet', 'Create a POS sale to begin', '']] : []),
                 ].map((item) => (
-                  <div className="flex items-center justify-between px-5 py-4" key={item[0]}>
+                  <div className="flex items-center justify-between px-5 py-4" key={`${item[0]}${item[1]}`}>
                     <div className="flex items-center gap-3">
                       <span className="grid size-8 place-items-center rounded-full bg-slate-100"><Package className="size-4" /></span>
                       <div><p className="text-sm font-medium">{item[0]}</p><p className="text-xs text-slate-400">{item[1]}</p></div>
@@ -95,22 +105,15 @@ export function Dashboard({ active, onNavigate }: PageProps) {
           <Card className="p-5">
             <h2 className="mb-5 font-semibold">Audit Logs</h2>
             <SimpleTable
-              headers={['User', 'Action', 'Resource', 'Date', 'Status']}
-              rows={[
-                [<UserCell name="Sarah M." src={people[1]} />, 'Login Attempt', 'System Access', 'Oct 24, 10:23 AM', <Badge tone="green">Success</Badge>],
-                [<UserCell name="David K." src={people[2]} />, 'Update Inventory', 'Warehouse A', 'Oct 24, 09:45 AM', <Badge tone="green">Completed</Badge>],
-                [<UserCell name="System" />, 'Backup Database', 'Daily Backup', 'Oct 24, 04:00 AM', <Badge tone="green">Success</Badge>],
-              ]}
+              headers={['Event', 'Resource', 'Date', 'Status']}
+              rows={(summary?.recentSales ?? []).slice(0, 3).map((sale) => ['Sale recorded', `Invoice #${sale.id}`, new Date(sale.createdAt).toLocaleString(), <Badge tone="green">{sale.status}</Badge>])}
             />
           </Card>
         </div>
         <aside className="space-y-6">
           <Card className="p-5">
             <h2 className="mb-4 flex items-center gap-2 font-semibold"><AlertTriangle className="size-5 text-red-500" />Low Stock Alerts</h2>
-            {['Child Guidance|Only 3 left|Restock', 'Education|Only 8 left|Restock', 'Evangelism||Review'].map((row) => {
-              const [title, sub, action] = row.split('|')
-              return <div className="flex items-center justify-between border-b border-slate-100 py-3 last:border-0" key={title}><div><p className="text-sm font-medium">{title}</p>{sub && <p className="text-xs text-red-500">{sub}</p>}</div><button className="rounded bg-slate-100 px-3 py-1 text-xs" type="button">{action}</button></div>
-            })}
+            {(summary?.lowStockBooks ?? []).map((book) => <div className="flex items-center justify-between border-b border-slate-100 py-3 last:border-0" key={book.id}><div><p className="text-sm font-medium">{book.title}</p><p className="text-xs text-red-500">{book.stockQuantity} left</p></div><button className="rounded bg-slate-100 px-3 py-1 text-xs" type="button">Restock</button></div>)}
           </Card>
           <Card className="p-5">
             <h2 className="mb-4 flex items-center gap-2 font-semibold"><Zap className="size-5 text-blue-600" />Announcements</h2>

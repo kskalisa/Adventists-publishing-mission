@@ -1,11 +1,14 @@
 import { ArrowLeft, Bell } from 'lucide-react'
 import { people } from '../../data/assets'
+import { getCurrentUser } from '../../lib/api'
 import type { Navigate, RoleArea } from '../../types/navigation'
 import { Avatar, Button, Logo, SearchBox } from '../ui'
 
 export function Topbar({ onNavigate, title, role = 'admin' }: { onNavigate: Navigate; title?: string; role?: RoleArea }) {
+  const user = getCurrentUser()
   const roleLabel = role === 'sales' ? 'Sales' : role === 'inventory-manager' ? 'Inventory Mgr.' : role === 'coordinator' ? 'Coordinator' : 'Administrator'
-  const profileScreen = role === 'inventory-manager' ? 'inventory-manager-profile' : 'settings'
+  const profileScreen = role === 'inventory-manager' ? 'inventory-manager-profile' : role === 'admin' ? 'users' : role === 'sales' ? 'customers' : 'coordinator'
+  const accountScreen = role === 'sales' ? 'customers' : role === 'admin' ? 'users' : profileScreen
   const searchPlaceholder = role === 'coordinator'
     ? title === 'Budget Tracking'
       ? 'Search budget codes, expenses...'
@@ -33,7 +36,7 @@ export function Topbar({ onNavigate, title, role = 'admin' }: { onNavigate: Navi
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
-        {title === 'Point of Sale' && <Button variant="ghost" icon={ArrowLeft}> </Button>}
+        {title === 'Point of Sale' && <Button variant="ghost" icon={ArrowLeft} onClick={() => onNavigate('sales-dashboard')}> </Button>}
         <div className="hidden w-80 sm:block">
           {title === 'Point of Sale' ? <h1 className="font-semibold text-slate-900">Point of Sale</h1> : <SearchBox placeholder={searchPlaceholder} />}
         </div>
@@ -46,8 +49,8 @@ export function Topbar({ onNavigate, title, role = 'admin' }: { onNavigate: Navi
           <Bell className="size-5" />
           <span className="absolute -right-1 -top-1 size-2 rounded-full bg-red-500" />
         </button>
-        <button className="hidden text-left sm:block" onClick={() => onNavigate('users')} type="button">
-          <p className="text-sm font-medium text-slate-900">Moise Arihafi</p>
+        <button className="hidden text-left sm:block" onClick={() => onNavigate(accountScreen)} type="button">
+          <p className="text-sm font-medium text-slate-900">{user?.name ?? 'Signed-in user'}</p>
           <p className="text-xs text-slate-500">{roleLabel}</p>
         </button>
         <button onClick={() => onNavigate(profileScreen)} type="button">

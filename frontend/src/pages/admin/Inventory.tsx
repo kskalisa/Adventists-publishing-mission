@@ -1,12 +1,13 @@
 import { AlertTriangle, BarChart3, BookOpen, Download, Edit3, Package, Plus, Printer, Trash2, Zap } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AddItemModal } from '../../components/forms'
-import type { StoredInventoryItem } from '../../components/forms'
 import { coverImages } from '../../data/assets'
-import { readStoredList } from '../../lib/storage'
+import { downloadCsv } from '../../lib/actions'
+import { deleteBook, listBooks, money } from '../../lib/api'
+import type { Book } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
-import { Badge, Button, Card, FilterBar, PageHeader, Progress, SimpleTable, StatCard } from '../../components/ui'
+import { Badge, Button, Card, FilterBar, Modal, PageHeader, Progress, SimpleTable, StatCard } from '../../components/ui'
 
 function StockBar({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
   return <div><p className="font-semibold">{label}</p><div className="mt-2 h-1.5 w-24 rounded bg-slate-100"><div className={`h-full rounded ${danger ? 'bg-red-500' : 'bg-blue-600'} ${value}`} /></div></div>
@@ -14,48 +15,58 @@ function StockBar({ label, value, danger = false }: { label: string; value: stri
 
 export function Inventory({ active, onNavigate }: PageProps) {
   const [showModal, setShowModal] = useState(false)
-  const [storedItems, setStoredItems] = useState(() => readStoredList<StoredInventoryItem>('adventist-inventory-items', []))
-  const rows = [
-    ...storedItems.map((item) => ({
-      title: item.title || 'New Inventory Item',
-      author: item.author || 'Unknown Author',
-      isbn: item.isbn || 'SKU-PENDING',
-      category: item.category,
-      price: item.price ? `$${item.price}` : '$0.00',
-      stock: item.stock || '0',
-      image: coverImages[0],
-      low: Number(item.stock || 0) < 50,
-    })),
-    { title: 'The Great Controversy', author: 'Ellen G. White', isbn: '978-0-8163-2345', category: 'Spirituality', price: '$18.50', stock: '1,240', image: coverImages[0], low: false },
-    { title: 'Ministry of Healing', author: 'Health Dept.', isbn: '978-0-8163-1122', category: 'Health & Wellness', price: '$14.99', stock: '42', image: coverImages[1], low: true },
-    { title: 'Steps to Christ', author: 'Ellen G. White', isbn: '978-0-8163-9988', category: 'Spirituality', price: '$5.00', stock: '850', image: coverImages[2], low: false },
-  ]
+  const [editingBook, setEditingBook] = useState<Book | undefined>()
+  const [deletingBook, setDeletingBook] = useState<Book | null>(null)
+  const [rows, setRows] = useState<Book[]>([])
+  const [error, setError] = useState('')
+
+  const loadBooks = () => {
+    listBooks().then(setRows).catch((error) => setError(error instanceof Error ? error.message : 'Unable to load inventory.'))
+  }
+
+  useEffect(loadBooks, [])
+  const lowStock = rows.filter((item) => item.status !== 'IN_STOCK').length
+  const categories = new Set(rows.map((item) => item.category)).size
+  const totalValue = rows.reduce((sum, item) => sum + item.price * item.stockQuantity, 0)
+
+  const removeBook = async () => {
+    if (!deletingBook) return
+    setError('')
+    try {
+      await deleteBook(deletingBook.id)
+      setDeletingBook(null)
+      loadBooks()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to delete book.')
+    }
+  }
 
   return (
     <Shell active={active} onNavigate={onNavigate}>
-      <PageHeader title="Inventory Management" actions={<><Button variant="secondary" icon={Download}>Export</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add New Book</Button></>} />
+      <PageHeader title="Inventory Management" actions={<><Button variant="secondary" icon={Download} onClick={() => downloadCsv('inventory.csv', ['Title', 'Author', 'ISBN', 'Category', 'Price', 'Stock', 'Status'], rows.map((item) => [item.title, item.author, item.isbn, item.category, item.price, item.stockQuantity, item.status]))}>Export</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add New Book</Button></>} />
       <div className="grid gap-6 xl:grid-cols-[1fr_235px]">
         <div className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Total Titles', value: '8,452', helper: '+12 New this week', icon: BookOpen, tone: 'blue' as const },
-              { label: 'Low Stock Alerts', value: '24', helper: 'Needs Attention', icon: AlertTriangle, tone: 'red' as const },
-              { label: 'Total Value', value: '$424k', helper: '+2.4% vs last month', icon: BarChart3, tone: 'green' as const },
-              { label: 'Categories', value: '18', helper: 'Active Sections', icon: Package, tone: 'orange' as const },
+              { label: 'Total Titles', value: rows.length.toString(), helper: 'Live catalog', icon: BookOpen, tone: 'blue' as const },
+              { label: 'Low Stock Alerts', value: lowStock.toString(), helper: 'Needs attention', icon: AlertTriangle, tone: 'red' as const },
+              { label: 'Total Value', value: money(totalValue), helper: 'Current stock value', icon: BarChart3, tone: 'green' as const },
+              { label: 'Categories', value: categories.toString(), helper: 'Active sections', icon: Package, tone: 'orange' as const },
             ].map((stat) => <StatCard key={stat.label} stat={stat} />)}
           </div>
           <FilterBar placeholder="Filter by Title, ISBN, or Author..." filters={['All Categories', 'Stock Status']} />
+          {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
           <Card>
             <SimpleTable
               headers={['Book Title', 'ISBN', 'Category', 'Price', 'Stock Level', 'Status', 'Actions']}
-              rows={rows.map((item) => [
-                <div className="flex items-center gap-4"><img className="size-14 rounded object-cover" src={item.image} alt="" /><div><p className="font-semibold">{item.title}</p><p className="text-xs text-slate-400">{item.author}</p></div></div>,
+              rows={rows.map((item, index) => [
+                <div className="flex items-center gap-4"><img className="size-14 rounded object-cover" src={item.coverImageUrl ?? coverImages[index % coverImages.length]} alt="" /><div><p className="font-semibold">{item.title}</p><p className="text-xs text-slate-400">{item.author}</p></div></div>,
                 <span className="font-mono text-xs text-slate-400">{item.isbn}</span>,
                 item.category,
-                item.price,
-                <StockBar value={item.low ? 'w-4' : 'w-5/6'} danger={item.low} label={item.stock} />,
-                <Badge tone={item.low ? 'orange' : 'green'}>{item.low ? 'Low Stock' : 'In Stock'}</Badge>,
-                <div className="flex gap-3 text-slate-400"><Edit3 className="size-4" /><Trash2 className="size-4 text-red-500" /></div>,
+                money(item.price),
+                <StockBar value={item.status === 'OUT_OF_STOCK' ? 'w-0' : item.status === 'LOW_STOCK' ? 'w-4' : 'w-5/6'} danger={item.status !== 'IN_STOCK'} label={item.stockQuantity.toLocaleString()} />,
+                <Badge tone={item.status === 'IN_STOCK' ? 'green' : 'orange'}>{item.status === 'IN_STOCK' ? 'In Stock' : item.status === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock'}</Badge>,
+                <div className="flex gap-3 text-slate-400"><button aria-label={`Edit ${item.title}`} onClick={() => { setEditingBook(item); setShowModal(true) }} type="button"><Edit3 className="size-4" /></button><button aria-label={`Delete ${item.title}`} onClick={() => setDeletingBook(item)} type="button"><Trash2 className="size-4 text-red-500" /></button></div>,
               ])}
             />
           </Card>
@@ -74,7 +85,8 @@ export function Inventory({ active, onNavigate }: PageProps) {
           </Card>
         </aside>
       </div>
-      {showModal && <AddItemModal onClose={() => setShowModal(false)} onCreated={() => setStoredItems(readStoredList<StoredInventoryItem>('adventist-inventory-items', []))} />}
+      {showModal && <AddItemModal book={editingBook} onClose={() => { setShowModal(false); setEditingBook(undefined) }} onCreated={loadBooks} />}
+      {deletingBook && <Modal title="Delete book?" onClose={() => setDeletingBook(null)} footer={<><Button variant="secondary" onClick={() => setDeletingBook(null)}>Cancel</Button><Button variant="danger" icon={Trash2} onClick={removeBook}>Delete Book</Button></>}><p className="text-sm leading-6 text-slate-600">This will permanently remove <strong className="text-blue-950">{deletingBook.title}</strong> from inventory. Continue only if this title should no longer be available in the catalog.</p></Modal>}
     </Shell>
   )
 }

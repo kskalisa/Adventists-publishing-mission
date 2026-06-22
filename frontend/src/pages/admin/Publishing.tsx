@@ -1,15 +1,29 @@
-import { Calendar, MoreHorizontal } from 'lucide-react'
+import { Calendar, Eye } from 'lucide-react'
+import { useState } from 'react'
 import { coverImages, people } from '../../data/assets'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
-import { Badge, Button, Card, PageHeader, SearchBox, Segmented, SimpleTable, StatCard, UserCell } from '../../components/ui'
+import { Badge, Button, Card, Modal, PageHeader, SearchBox, Segmented, SimpleTable, StatCard, UserCell } from '../../components/ui'
+
+type PublishingProject = {
+  title: string
+  author: string
+  stage: string
+  width: string
+  pct: string
+  due: string
+}
 
 export function Publishing({ active, onNavigate }: PageProps) {
+  const [selectedProject, setSelectedProject] = useState<PublishingProject | null>(null)
   const projects = [
     'The Great Controversy|E.G. White|Printing|w-5/6|85%|Oct 15, 2024',
     'Sabbath School Lesson Q3|Sarah M. (Trans)|Typesetting|w-2/5|45%|Nov 01, 2024',
     'Healthy Living Guide|Dr. James K.|Manuscript|w-1/5|20%|Dec 10, 2024',
-  ]
+  ].map((row) => {
+    const [title, author, stage, width, pct, due] = row.split('|')
+    return { title, author, stage, width, pct, due }
+  })
 
   return (
     <Shell active={active} onNavigate={onNavigate}>
@@ -19,20 +33,20 @@ export function Publishing({ active, onNavigate }: PageProps) {
       <Card className="rounded-t-none">
         <SimpleTable
           headers={['', 'Book Details', 'Author / Editor', 'Current Stage', 'Progress', 'Due Date', 'Actions']}
-          rows={projects.map((row, index) => {
-            const [title, author, stage, width, pct, due] = row.split('|')
+          rows={projects.map((project, index) => {
             return [
-              <input type="checkbox" aria-label={`Select ${title}`} />,
-              <div className="flex items-center gap-4"><img className="size-14 rounded object-cover" src={coverImages[index]} alt="" /><div><p className="font-semibold text-blue-950">{title}</p><p className="text-xs text-slate-400">ISBN: {index ? 'Pending' : '978-1-234-56789-0'}</p></div></div>,
-              <UserCell name={author} src={people[index]} />,
-              <Badge tone={stage === 'Printing' ? 'blue' : stage === 'Typesetting' ? 'orange' : 'gray'}>{stage}</Badge>,
-              <div className="flex items-center gap-2"><div className="h-1.5 w-24 rounded bg-slate-100"><div className={`h-full rounded bg-blue-600 ${width}`} /></div><span>{pct}</span></div>,
-              due,
-              <MoreHorizontal className="size-4 text-slate-400" />,
+              <input type="checkbox" aria-label={`Select ${project.title}`} />,
+              <div className="flex items-center gap-4"><img className="size-14 rounded object-cover" src={coverImages[index]} alt="" /><div><p className="font-semibold text-blue-950">{project.title}</p><p className="text-xs text-slate-400">ISBN: {index ? 'Pending' : '978-1-234-56789-0'}</p></div></div>,
+              <UserCell name={project.author} src={people[index]} />,
+              <Badge tone={project.stage === 'Printing' ? 'blue' : project.stage === 'Typesetting' ? 'orange' : 'gray'}>{project.stage}</Badge>,
+              <div className="flex items-center gap-2"><div className="h-1.5 w-24 rounded bg-slate-100"><div className={`h-full rounded bg-blue-600 ${project.width}`} /></div><span>{project.pct}</span></div>,
+              project.due,
+              <button aria-label={`View ${project.title}`} onClick={() => setSelectedProject(project)} type="button"><Eye className="size-4 text-slate-400" /></button>,
             ]
           })}
         />
       </Card>
+      {selectedProject && <Modal title="Publishing project" onClose={() => setSelectedProject(null)} footer={<Button onClick={() => setSelectedProject(null)}>Done</Button>}><div className="space-y-3 text-sm text-slate-600"><p><strong className="text-blue-950">{selectedProject.title}</strong></p><p>Author / Editor: {selectedProject.author}</p><p>Current Stage: {selectedProject.stage}</p><p>Progress: {selectedProject.pct}</p><p>Due Date: {selectedProject.due}</p></div></Modal>}
     </Shell>
   )
 }

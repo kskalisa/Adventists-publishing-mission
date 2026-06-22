@@ -1,49 +1,59 @@
-import { Download, MoreHorizontal, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { Download, Eye, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { AddCustomerModal } from '../../components/forms'
-import type { StoredCustomer } from '../../components/forms'
 import { people } from '../../data/assets'
-import { readStoredList } from '../../lib/storage'
+import { downloadCsv } from '../../lib/actions'
+import { listCustomers } from '../../lib/api'
+import type { Customer } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
-import { Badge, Button, Card, FilterBar, PageHeader, SimpleTable, StatCard, UserCell } from '../../components/ui'
+import { Badge, Button, Card, FilterBar, Modal, PageHeader, SimpleTable, StatCard, UserCell } from '../../components/ui'
+import type { RoleArea } from '../../types/navigation'
 
-export function Customers({ active, onNavigate }: PageProps) {
+export function Customers({ active, onNavigate, role = 'admin' }: PageProps & { role?: RoleArea }) {
   const [showModal, setShowModal] = useState(false)
-  const [storedCustomers, setStoredCustomers] = useState(() => readStoredList<StoredCustomer>('adventist-customers', []))
-  const customers = [
-    ...storedCustomers.map((customer) => `${customer.name || 'New Customer'}|${customer.type || 'Individual'}|${customer.district}|0|$0`),
-    'Jean-Claude M.|Branch Manager|Kigali Center|152|$12,400',
-    'Butare SDA Church|Church|Huye District|24|$3,200',
-    'Alice M.|Individual|Nyarugenge|5|$450',
-    'Gitwe Adventist College|School|Ruhango|12|$8,900',
-    'Alice M.|Individual|Nyarugenge|5|$450',
-  ]
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [error, setError] = useState('')
+
+  const loadCustomers = () => {
+    listCustomers().then(setCustomers).catch((error) => setError(error instanceof Error ? error.message : 'Unable to load customers.'))
+  }
+
+  useEffect(loadCustomers, [])
 
   return (
-    <Shell active={active} onNavigate={onNavigate}>
-      <PageHeader title="Customer Management" actions={<><Button variant="secondary" icon={Download}>Export CSV</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add Customer</Button></>} />
-      <div className="grid gap-6 md:grid-cols-4">{['Total Customers|1,245|42 new this month', 'Active Branches|12|Across 4 regions', 'Registered Churches|85|3 new registrations', 'Total Revenue (YTD)|$458K|+14% vs last year'].map((s) => { const [label, value, helper] = s.split('|'); return <StatCard key={label} stat={{ label, value, helper }} /> })}</div>
+    <Shell active={active} onNavigate={onNavigate} role={role}>
+      <PageHeader title="Customer Management" actions={<><Button variant="secondary" icon={Download} onClick={() => downloadCsv('customers.csv', ['Name', 'Type', 'Email', 'Phone', 'District', 'Status'], customers.map((customer) => [customer.name, customer.type, customer.email, customer.phone, customer.district, customer.active ? 'Active' : 'Inactive']))}>Export CSV</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add Customer</Button></>} />
+      <div className="grid gap-6 md:grid-cols-4">{[
+        { label: 'Total Customers', value: customers.length.toString(), helper: 'Live customer records' },
+        { label: 'Active Branches', value: customers.filter((customer) => customer.type === 'BRANCH').length.toString(), helper: 'Across registered districts' },
+        { label: 'Registered Churches', value: customers.filter((customer) => customer.type === 'CHURCH').length.toString(), helper: 'Church accounts' },
+        { label: 'Schools', value: customers.filter((customer) => customer.type === 'SCHOOL').length.toString(), helper: 'Education customers' },
+      ].map((stat) => <StatCard key={stat.label} stat={stat} />)}</div>
       <div className="mt-6"><FilterBar placeholder="Search customers..." filters={['All Types', 'Status: All']} /></div>
+      {error && <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
       <Card className="mt-6">
         <SimpleTable
           headers={['', 'Customer / Contact', 'Type', 'Location', 'Orders', 'Total Spend', 'Status', 'Actions']}
-          rows={customers.map((row, index) => {
-            const [name, type, loc, orders, spend] = row.split('|')
-            return [
-              <input type="checkbox" aria-label={`Select ${name}`} />,
-              <UserCell name={name} sub={`${name.toLowerCase().replaceAll(' ', '.')}@adventist.rw`} src={index === 1 || index === 3 ? undefined : people[index % people.length]} />,
-              <Badge tone={type === 'School' ? 'green' : type === 'Church' ? 'blue' : type === 'Branch Manager' ? 'purple' : 'gray'}>{type}</Badge>,
-              loc,
-              orders,
-              spend,
-              <span className="flex items-center gap-2"><i className={`size-2 rounded-full ${index === 3 ? 'bg-slate-500' : 'bg-emerald-600'}`} />{index === 3 ? 'Pending' : 'Active'}</span>,
-              <MoreHorizontal className="size-4 text-slate-400" />,
-            ]
-          })}
+          rows={customers.map((customer, index) => [
+            <input type="checkbox" aria-label={`Select ${customer.name}`} />,
+            <UserCell name={customer.name} sub={customer.email ?? customer.phone ?? 'No contact provided'} src={people[index % people.length]} />,
+            <Badge tone={customer.type === 'SCHOOL' ? 'green' : customer.type === 'CHURCH' ? 'blue' : customer.type === 'BRANCH' ? 'purple' : 'gray'}>{typeLabel(customer.type)}</Badge>,
+            customer.district ?? 'Unassigned',
+            '0',
+            'RWF 0',
+            <span className="flex items-center gap-2"><i className={`size-2 rounded-full ${customer.active ? 'bg-emerald-600' : 'bg-slate-500'}`} />{customer.active ? 'Active' : 'Inactive'}</span>,
+            <div className="flex gap-3 text-slate-400"><button aria-label={`View ${customer.name}`} onClick={() => setSelectedCustomer(customer)} type="button"><Eye className="size-4" /></button><button aria-label={`Export ${customer.name}`} onClick={() => downloadCsv(`customer-${customer.id}.csv`, ['Name', 'Type', 'Email', 'Phone', 'District', 'Status'], [[customer.name, customer.type, customer.email, customer.phone, customer.district, customer.active ? 'Active' : 'Inactive']])} type="button"><Download className="size-4" /></button></div>,
+          ])}
         />
       </Card>
-      {showModal && <AddCustomerModal onClose={() => setShowModal(false)} onCreated={() => setStoredCustomers(readStoredList<StoredCustomer>('adventist-customers', []))} />}
+      {showModal && <AddCustomerModal onClose={() => setShowModal(false)} onCreated={loadCustomers} />}
+      {selectedCustomer && <Modal title="Customer details" onClose={() => setSelectedCustomer(null)} footer={<Button onClick={() => setSelectedCustomer(null)}>Done</Button>}><div className="space-y-3 text-sm text-slate-600"><p><strong className="text-blue-950">{selectedCustomer.name}</strong></p><p>Email: {selectedCustomer.email ?? 'No email recorded'}</p><p>Phone: {selectedCustomer.phone ?? 'No phone recorded'}</p><p>District: {selectedCustomer.district ?? 'No district assigned'}</p><p>Status: {selectedCustomer.active ? 'Active' : 'Inactive'}</p></div></Modal>}
     </Shell>
   )
+}
+
+function typeLabel(type: Customer['type']) {
+  return type === 'BRANCH' ? 'Branch Manager' : type[0] + type.slice(1).toLowerCase()
 }

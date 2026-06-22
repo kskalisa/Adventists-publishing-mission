@@ -1,5 +1,6 @@
 import { LogOut } from 'lucide-react'
 import { coordinatorNavItems, inventoryManagerNavItems, navItems, salesNavItems } from '../../data/navigation'
+import { clearCurrentSession } from '../../lib/api'
 import type { Navigate, RoleArea, Screen } from '../../types/navigation'
 import { Logo } from '../ui'
 
@@ -31,8 +32,6 @@ export function Sidebar({ active, onNavigate, role = 'admin' }: { active: Screen
                     active === item.id ||
                     (active === 'pos' && item.id === 'sales') ||
                     (active === 'sales-dashboard' && item.id === 'dashboard') ||
-                    (active === 'users' && item.id === 'reports') ||
-                    (active === 'settings' && item.id === 'reports') ||
                     (active === 'inventory-manager-profile' && item.id === 'inventory-manager-report')
 
                   return (
@@ -55,7 +54,10 @@ export function Sidebar({ active, onNavigate, role = 'admin' }: { active: Screen
       </nav>
       <button
         className="flex items-center gap-3 border-t border-white/5 px-4 py-5 text-sm text-slate-400 transition hover:text-white"
-        onClick={() => onNavigate('login')}
+        onClick={() => {
+          clearCurrentSession()
+          onNavigate('login')
+        }}
         type="button"
       >
         <LogOut className="size-5" />

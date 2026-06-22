@@ -12,6 +12,7 @@ public record BookDto(
         BigDecimal price,
         int stockQuantity,
         int reorderLevel,
+        String coverImageUrl,
         BookStatus status,
         Instant createdAt
 ) {
@@ -25,6 +26,7 @@ public record BookDto(
                 book.getPrice(),
                 book.getStockQuantity(),
                 book.getReorderLevel(),
+                book.getCoverImageUrl(),
                 book.getStatus(),
                 book.getCreatedAt()
         );

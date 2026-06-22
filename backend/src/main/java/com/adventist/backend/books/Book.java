@@ -36,6 +36,10 @@ public class Book {
     @Column(nullable = false)
     private int reorderLevel;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String coverImageUrl;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -67,6 +71,8 @@ public class Book {
     public void setStockQuantity(int stockQuantity) { this.stockQuantity = stockQuantity; }
     public int getReorderLevel() { return reorderLevel; }
     public void setReorderLevel(int reorderLevel) { this.reorderLevel = reorderLevel; }
+    public String getCoverImageUrl() { return coverImageUrl; }
+    public void setCoverImageUrl(String coverImageUrl) { this.coverImageUrl = coverImageUrl; }
     public Instant getCreatedAt() { return createdAt; }
 
     public BookStatus getStatus() {

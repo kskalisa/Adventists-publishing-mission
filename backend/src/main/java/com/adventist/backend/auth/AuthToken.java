@@ -1,0 +1,41 @@
+package com.adventist.backend.auth;
+
+import com.adventist.backend.users.AppUser;
+import jakarta.persistence.*;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "auth_tokens", indexes = {
+        @Index(name = "idx_auth_tokens_token", columnList = "token", unique = true)
+})
+public class AuthToken {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 96)
+    private String token;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    private AppUser user;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
+    @Column(nullable = false)
+    private Instant expiresAt;
+
+    protected AuthToken() {
+    }
+
+    public AuthToken(String token, AppUser user, Instant expiresAt) {
+        this.token = token;
+        this.user = user;
+        this.expiresAt = expiresAt;
+    }
+
+    public String getToken() { return token; }
+    public AppUser getUser() { return user; }
+    public Instant getExpiresAt() { return expiresAt; }
+}

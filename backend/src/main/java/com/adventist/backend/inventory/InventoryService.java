@@ -22,6 +22,7 @@ public class InventoryService {
         this.userRepository = userRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<StockAdjustmentDto> listRecentAdjustments() {
         return adjustmentRepository.findTop20ByOrderByCreatedAtDesc().stream().map(StockAdjustmentDto::from).toList();
     }

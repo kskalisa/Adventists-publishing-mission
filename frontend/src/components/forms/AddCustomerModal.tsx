@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { appendStoredItem } from '../../lib/storage'
+import { createCustomer } from '../../lib/api'
+import type { Customer, CustomerType } from '../../lib/api'
 import { Button, Modal } from '../ui'
 
 export type StoredCustomer = {
@@ -15,7 +16,7 @@ export type StoredCustomer = {
 
 const inputClass = 'h-10 w-full rounded-md border border-slate-200 px-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100'
 
-export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (customer: StoredCustomer) => void }) {
+export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (customer: Customer) => void }) {
   const [form, setForm] = useState({
     type: '',
     name: '',
@@ -25,23 +26,39 @@ export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; 
     status: 'Active',
     address: '',
   })
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
 
-  const submit = () => {
-    const customer: StoredCustomer = { id: crypto.randomUUID(), ...form }
-    appendStoredItem('adventist-customers', customer)
-    onCreated?.(customer)
-    onClose()
+  const submit = async () => {
+    setSubmitting(true)
+    setError('')
+    try {
+      const customer = await createCustomer({
+        name: form.name,
+        type: toCustomerType(form.type),
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        district: form.district || undefined,
+      })
+      onCreated?.(customer)
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to create customer.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <Modal
       title="Add New Customer"
       onClose={onClose}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={submit}>Create Customer</Button></>}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={submit}>{submitting ? 'Creating...' : 'Create Customer'}</Button></>}
     >
       <div className="space-y-5">
+        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
         <label className="block">
           <span className="mb-2 block text-sm font-medium text-blue-950">Customer Type</span>
           <select className={inputClass} value={form.type} onChange={(event) => update('type', event.target.value)}>
@@ -95,3 +112,10 @@ export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; 
   )
 }
 
+function toCustomerType(value: string): CustomerType | undefined {
+  if (value === 'Church') return 'CHURCH'
+  if (value === 'School') return 'SCHOOL'
+  if (value === 'Branch Manager') return 'BRANCH'
+  if (value === 'Individual') return 'INDIVIDUAL'
+  return undefined
+}
