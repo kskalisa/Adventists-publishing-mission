@@ -1,6 +1,6 @@
 ﻿import { Briefcase, Calendar, Printer } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { printCurrentPage } from '../../lib/actions'
+import { printReport } from '../../lib/actions'
 import { listSales, money } from '../../lib/api'
 import type { Sale } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
@@ -33,10 +33,25 @@ export function DailySummary({ active, onNavigate }: PageProps) {
     topItems.set(item.title, { quantity: current.quantity + item.quantity, revenue: current.revenue + item.lineTotal })
   }))
   const topTitles = [...topItems.entries()].sort((a, b) => b[1].quantity - a[1].quantity).slice(0, 3)
+  const report = {
+    title: 'Daily Sales Summary',
+    subtitle: todaySales.length ? "Today's transactions and register status." : 'Recent transactions and register status.',
+    filename: 'daily-sales-summary',
+    metrics: [
+      { label: 'Total Sales', value: money(total) },
+      { label: 'Transactions', value: visibleSales.length },
+      { label: 'Items Sold', value: itemsSold },
+      { label: 'Sales Target', value: `${targetProgress}%`, helper: `${money(remaining)} remaining` },
+    ],
+    tables: [
+      { title: 'Recent Transactions', headers: ['Time', 'Receipt', 'Customer', 'Items', 'Total', 'Payment'], rows: visibleSales.map((sale) => [new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), `#INV-${sale.id.toString().padStart(5, '0')}`, sale.customerName, sale.items.reduce((sum, item) => sum + item.quantity, 0), money(sale.total), sale.paymentMethod ?? 'Cash']) },
+      { title: 'Top Selling Titles', headers: ['Title', 'Quantity', 'Revenue'], rows: topTitles.map(([title, item]) => [title, item.quantity, money(item.revenue)]) },
+    ],
+  }
 
   return (
     <Shell active={active} onNavigate={onNavigate} role="sales">
-      <PageHeader title="Daily Sales Summary" subtitle="Overview of today's transactions and register status." actions={<><Button variant="secondary" icon={Calendar}>Today</Button><Button variant="secondary" icon={Printer} onClick={printCurrentPage}>Print Report</Button><Button icon={Briefcase} onClick={() => onNavigate('sales-history')}>Close Register</Button></>} />
+      <PageHeader title="Daily Sales Summary" subtitle="Overview of today's transactions and register status." actions={<><Button variant="secondary" icon={Calendar}>Today</Button><Button variant="secondary" icon={Printer} onClick={() => printReport(report)}>Print Report</Button><Button icon={Briefcase} onClick={() => onNavigate('sales-history')}>Close Register</Button></>} />
       {error && <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
       <div className="grid gap-5 md:grid-cols-4">{[
         { label: 'Total Sales', value: money(total), helper: todaySales.length ? 'Today' : 'Recent sales' },

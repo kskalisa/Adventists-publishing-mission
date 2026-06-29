@@ -21,6 +21,8 @@ public class Customer {
     private String email;
     private String phone;
     private String district;
+    @Column(columnDefinition = "text")
+    private String address;
 
     @Column(nullable = false)
     private boolean active = true;
@@ -31,12 +33,13 @@ public class Customer {
     protected Customer() {
     }
 
-    public Customer(String name, CustomerType type, String email, String phone, String district) {
+    public Customer(String name, CustomerType type, String email, String phone, String district, String address) {
         this.name = name;
         this.type = type;
         this.email = email;
         this.phone = phone;
         this.district = district;
+        this.address = address;
     }
 
     public Long getId() { return id; }
@@ -50,6 +53,8 @@ public class Customer {
     public void setPhone(String phone) { this.phone = phone; }
     public String getDistrict() { return district; }
     public void setDistrict(String district) { this.district = district; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title desc">
+  <title id="title">Seventh-day Adventist logo</title>
+  <desc id="desc">Adventist symbol with Bible, cross, flame, and ascending lines.</desc>
+  <rect width="180" height="180" rx="18" fill="#fff"/>
+  <g fill="none" stroke="#0b6f4a" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M42 134c24-17 45-17 69 0v19c-24-15-45-15-69 0v-19Z" fill="#0b6f4a" stroke-width="0"/>
+    <path d="M111 134c23-17 44-17 67 0v19c-24-15-45-15-67 0v-19Z" fill="#0b6f4a" stroke-width="0" transform="translate(-39)"/>
+    <path d="M90 133v23" stroke="#fff" stroke-width="5"/>
+    <path d="M90 47v82" stroke-width="9"/>
+    <path d="M66 72h48" stroke-width="9"/>
+    <path d="M46 118c16-20 18-45 9-74 29 22 43 50 24 79-11-6-21-7-33-5Z" stroke-width="8"/>
+    <path d="M134 118c-16-20-18-45-9-74-29 22-43 50-24 79 11-6 21-7 33-5Z" stroke-width="8"/>
+    <path d="M68 115c-17-25-9-57 22-91-3 34 25 44 19 73-3 15-17 27-41 32 6-7 6-11 0-14Z" fill="#0b6f4a" stroke-width="0"/>
+    <path d="M88 121c-12-16-4-33 11-51 4 17 23 25 18 45-3 12-14 21-28 23 4-8 3-12-1-17Z" fill="#f5c542" stroke-width="0"/>
+  </g>
+</svg>

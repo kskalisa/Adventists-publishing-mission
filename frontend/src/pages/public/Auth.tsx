@@ -1,14 +1,24 @@
-import { Eye } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { useState } from 'react'
-import { demoUsers } from '../../data/demoUsers'
-import { login, requestAccess, roleDashboards, setCurrentSession } from '../../lib/api'
-import type { CreateAccessRequest } from '../../lib/api'
-import type { Navigate } from '../../types/navigation'
-import { Logo } from '../../components/ui'
+import { ArrowLeft, CheckCircle2, Eye, Info } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
+import {
+  login,
+  requestAccess,
+  roleDashboards,
+  setCurrentSession,
+} from "../../lib/api";
+import type { CreateAccessRequest } from "../../lib/api";
+import type { Navigate } from "../../types/navigation";
+import { Logo } from "../../components/ui";
 
 function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-screen bg-slate-50 p-6"><section className="mx-auto flex min-h-[calc(100vh-48px)] max-w-7xl items-center justify-center rounded-2xl bg-white shadow-xl shadow-slate-200/70">{children}</section></main>
+  return (
+    <main className="min-h-screen bg-slate-50 p-6">
+      <section className="mx-auto flex min-h-[calc(100vh-48px)] max-w-7xl items-center justify-center rounded-2xl bg-white shadow-xl shadow-slate-200/70">
+        {children}
+      </section>
+    </main>
+  );
 }
 
 function Field({
@@ -16,32 +26,61 @@ function Field({
   value,
   icon: Icon,
   onChange,
-  type = 'text',
+  onBlur,
+  type = "text",
   autoComplete,
+  placeholder,
+  error,
+  hint,
+  required = false,
 }: {
-  label: string
-  value: string
-  icon?: LucideIcon
-  onChange?: (value: string) => void
-  type?: string
-  autoComplete?: string
+  label: string;
+  value: string;
+  icon?: LucideIcon;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
+  type?: string;
+  autoComplete?: string;
+  placeholder?: string;
+  error?: string;
+  hint?: string;
+  required?: boolean;
 }) {
   return (
     <label className="mt-8 block">
-      <span className="mb-2 block text-sm font-medium">{label}</span>
+      <span className="mb-2 flex items-center justify-between gap-3 text-sm font-medium">
+        <span>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </span>
+      </span>
       <span className="relative block">
         <input
-          className="h-14 w-full rounded-md border border-slate-300 px-4 text-base outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+          aria-invalid={Boolean(error)}
+          className={`h-14 w-full rounded-md border px-4 text-base outline-none transition focus:ring-4 ${
+            error
+              ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+              : "border-slate-300 focus:border-blue-300 focus:ring-blue-100"
+          } ${Icon ? "pr-12" : ""}`}
+          onBlur={onBlur}
           onChange={(event) => onChange?.(event.target.value)}
+          placeholder={placeholder}
           readOnly={!onChange}
           type={type}
           value={value}
           autoComplete={autoComplete}
         />
-        {Icon && <Icon className="absolute right-4 top-1/2 size-5 -translate-y-1/2" />}
+        {Icon && (
+          <Icon className="absolute right-4 top-1/2 size-5 -translate-y-1/2" />
+        )}
       </span>
+      {error ? (
+        <span className="mt-2 block text-sm text-red-600">{error}</span>
+      ) : (
+        hint && <span className="mt-2 block text-sm text-slate-500">{hint}</span>
+      )}
     </label>
-  )
+  );
 }
 
 function AuthBrand() {
@@ -53,126 +92,447 @@ function AuthBrand() {
         <p className="text-sm text-slate-500">Management & Sales Data System</p>
       </div>
     </div>
-  )
+  );
 }
 
 export function Login({ onNavigate }: { onNavigate: Navigate }) {
-  const [email, setEmail] = useState('admin@adventist.rw')
-  const [password, setPassword] = useState('admin123')
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError('')
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
 
     try {
-      const session = await login(email, password)
-      setCurrentSession(session)
-      onNavigate(roleDashboards[session.user.role])
+      const session = await login(email, password);
+      setCurrentSession(session);
+      onNavigate(roleDashboards[session.user.role]);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to sign in.')
+      setError(error instanceof Error ? error.message : "Unable to sign in.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <AuthLayout>
       <form className="w-full max-w-md" onSubmit={submit}>
+        <button
+          className="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-blue-950 transition hover:text-blue-700"
+          onClick={() => onNavigate("landing")}
+          type="button"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Home
+        </button>
         <AuthBrand />
         <h2 className="text-4xl font-bold">Welcome Back</h2>
-        <p className="mt-4 text-slate-500">Sign in to access your dashboard and manage operations</p>
-        <Field label="Email Address" value={email} onChange={setEmail} autoComplete="email" />
-        <Field label="Password" value={password} onChange={setPassword} icon={Eye} type="password" autoComplete="current-password" />
-        {error && <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-        <div className="my-5 flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-slate-500"><input type="checkbox" className="size-5 rounded" />Remember me</label><button className="font-medium text-blue-950" type="button">Forgot Password?</button></div>
-        <button className="h-14 w-full rounded-md bg-[#0d2b49] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={submitting} type="submit">{submitting ? 'Signing in...' : 'Sign In'}</button>
-        <div className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-sm font-semibold text-blue-950">Demo credentials</p>
-          <div className="space-y-2">
-            {demoUsers.map((user) => (
-              <button
-                className="flex w-full items-center justify-between rounded border border-transparent px-3 py-2 text-left text-xs transition hover:border-blue-100 hover:bg-white"
-                key={user.email}
-                onClick={() => {
-                  setEmail(user.email)
-                  setPassword(user.password)
-                  setError('')
-                }}
-                type="button"
-              >
-                <span><strong className="block text-slate-900">{user.name}</strong><span className="text-slate-500">{user.email}</span></span>
-                <span className="font-mono text-slate-500">{user.password}</span>
-              </button>
-            ))}
-          </div>
+        <p className="mt-4 text-slate-500">
+          Sign in to access your dashboard and manage operations
+        </p>
+        <Field
+          label="Email Address"
+          value={email}
+          onChange={setEmail}
+          autoComplete="email"
+          placeholder="you@example.com"
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          icon={Eye}
+          type="password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
+        />
+        {error && (
+          <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        <div className="my-5 flex items-center justify-between text-sm">
+          <label className="flex items-center gap-2 text-slate-500">
+            <input type="checkbox" className="size-5 rounded" />
+            Remember me
+          </label>
+          <button className="font-medium text-blue-950" type="button">
+            Forgot Password?
+          </button>
         </div>
-        <div className="my-10 flex items-center gap-5 text-slate-400"><span className="h-px flex-1 bg-slate-200" />or<span className="h-px flex-1 bg-slate-200" /></div>
-        <p className="text-center text-sm text-slate-500">Don't have an account? <button className="font-semibold text-blue-950" onClick={() => onNavigate('access')} type="button">Request Access</button></p>
+        <button
+          className="h-14 w-full rounded-md bg-[#0d2b49] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
+          type="submit"
+        >
+          {submitting ? "Signing in..." : "Sign In"}
+        </button>
+        <div className="my-10 flex items-center gap-5 text-slate-400">
+          <span className="h-px flex-1 bg-slate-200" />
+          or
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+        <p className="text-center text-sm text-slate-500">
+          Don't have an account?{" "}
+          <button
+            className="font-semibold text-blue-950"
+            onClick={() => onNavigate("access")}
+            type="button"
+          >
+            Request Access
+          </button>
+        </p>
       </form>
     </AuthLayout>
-  )
+  );
+}
+
+type AccessForm = {
+  name: string;
+  email: string;
+  phone: string;
+  employeeId: string;
+  department: string;
+  role: CreateAccessRequest["requestedRole"];
+  password: string;
+  confirmPassword: string;
+};
+
+type AccessErrors = Partial<Record<keyof AccessForm, string>>;
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phonePattern = /^[+()\d\s-]{7,20}$/;
+
+function validateAccessForm(form: AccessForm) {
+  const errors: AccessErrors = {};
+  const name = form.name.trim();
+  const email = form.email.trim();
+  const phone = form.phone.trim();
+  const password = form.password;
+
+  if (!name) {
+    errors.name = "Full name is required.";
+  } else if (name.length < 3) {
+    errors.name = "Full name must be at least 3 characters.";
+  }
+
+  if (!email) {
+    errors.email = "Email address is required.";
+  } else if (!emailPattern.test(email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (phone && !phonePattern.test(phone)) {
+    errors.phone = "Enter a valid phone number.";
+  }
+
+  if (!form.department) {
+    errors.department = "Choose a department.";
+  }
+
+  if (!form.role) {
+    errors.role = "Choose the access role you need.";
+  }
+
+  if (!password) {
+    errors.password = "Password is required.";
+  } else if (password.length < 8) {
+    errors.password = "Password must be at least 8 characters.";
+  }
+
+  if (!form.confirmPassword) {
+    errors.confirmPassword = "Confirm your password.";
+  } else if (password !== form.confirmPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  return errors;
+}
+
+function passwordStrength(password: string) {
+  const checks = [
+    password.length >= 8,
+    /[A-Z]/.test(password),
+    /[a-z]/.test(password),
+    /\d/.test(password),
+  ];
+  const score = checks.filter(Boolean).length;
+
+  if (!password) return { label: "Use at least 8 characters.", score };
+  if (score <= 2) return { label: "Password strength: basic", score };
+  if (score === 3) return { label: "Password strength: good", score };
+  return { label: "Password strength: strong", score };
 }
 
 export function RequestAccess({ onNavigate }: { onNavigate: Navigate }) {
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    employeeId: '',
-    department: 'Sales',
-    role: 'SALES' as CreateAccessRequest['requestedRole'],
-    password: '',
-    confirmPassword: '',
-  })
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [form, setForm] = useState<AccessForm>({
+    name: "",
+    email: "",
+    phone: "",
+    employeeId: "",
+    department: "Sales",
+    role: "SALES" as CreateAccessRequest["requestedRole"],
+    password: "",
+    confirmPassword: "",
+  });
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Partial<Record<keyof AccessForm, boolean>>>({});
+  const [submitted, setSubmitted] = useState(false);
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
+  const errors = validateAccessForm(form);
+  const showError = (key: keyof AccessForm) =>
+    submitted || touched[key] ? errors[key] : "";
+  const markTouched = (key: keyof AccessForm) =>
+    setTouched((current) => ({ ...current, [key]: true }));
+  const strength = passwordStrength(form.password);
+
+  const update = (key: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError('')
-    setMessage('')
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.')
-      return
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setSubmitted(true);
+
+    const nextErrors = validateAccessForm(form);
+    if (Object.keys(nextErrors).length > 0) {
+      setTouched({
+        name: true,
+        email: true,
+        phone: true,
+        department: true,
+        role: true,
+        password: true,
+        confirmPassword: true,
+      });
+      setError("Please correct the highlighted fields before submitting.");
+      return;
     }
-    setSubmitting(true)
+
+    setSubmitting(true);
     try {
-      await requestAccess({ name: form.name, email: form.email, phone: form.phone, department: form.department, password: form.password, requestedRole: form.role })
-      setMessage('Access request submitted. An administrator must approve it before you can sign in.')
+      await requestAccess({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        department: form.department,
+        password: form.password,
+        requestedRole: form.role,
+      });
+      setMessage(
+        "Access request submitted. An administrator must approve it before you can sign in.",
+      );
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        employeeId: "",
+        department: "Sales",
+        role: "SALES",
+        password: "",
+        confirmPassword: "",
+      });
+      setTouched({});
+      setSubmitted(false);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to create account.')
+      setError(
+        error instanceof Error ? error.message : "Unable to create account.",
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-20">
-      <form className="mx-auto max-w-2xl" onSubmit={submit}>
+    <main className="min-h-screen bg-slate-50 px-6 py-12">
+      <form className="mx-auto max-w-3xl" onSubmit={submit}>
+        <button
+          className="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-blue-950 transition hover:text-blue-700"
+          onClick={() => onNavigate("landing")}
+          type="button"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Home
+        </button>
         <AuthBrand />
-        <h2 className="text-4xl font-bold">Request Access</h2>
-        <p className="mt-5 max-w-xl text-slate-500">Fill in your details to request system access. Your account will be reviewed and approved by an administrator.</p>
-        {error && <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-        {message && <p className="mt-6 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>}
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          <Field label="Full Name *" value={form.name} onChange={(value) => update('name', value)} />
-          <Field label="Email Address *" value={form.email} onChange={(value) => update('email', value)} autoComplete="email" />
-          <Field label="Phone Number" value={form.phone} onChange={(value) => update('phone', value)} />
-          <Field label="Employee ID" value={form.employeeId} onChange={(value) => update('employeeId', value)} />
-          <label className="mt-8 block"><span className="mb-2 block text-sm font-medium">Department *</span><select className="h-14 w-full rounded-md border border-slate-300 px-4 text-base outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100" value={form.department} onChange={(event) => update('department', event.target.value)}><option>Sales</option><option>Inventory</option><option>Coordination</option><option>Administration</option></select></label>
-          <label className="mt-8 block"><span className="mb-2 block text-sm font-medium">Role *</span><select className="h-14 w-full rounded-md border border-slate-300 px-4 text-base outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="SALES">Sales</option><option value="INVENTORY_MANAGER">Inventory Manager</option><option value="COORDINATOR">Coordinator</option></select></label>
+        <div className="flex flex-col gap-6 border-b border-slate-200 pb-8 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-4xl font-bold">Request Access</h2>
+            <p className="mt-5 max-w-xl text-slate-500">
+              Fill in your details to request system access. Your account will
+              be reviewed and approved by an administrator.
+            </p>
+          </div>
+          <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+            <div className="flex items-center gap-2 font-semibold">
+              <Info className="size-4" />
+              Review required
+            </div>
+            <p className="mt-1 text-blue-900">
+              You will be notified after approval.
+            </p>
+          </div>
         </div>
-        <Field label="Password *" value={form.password} onChange={(value) => update('password', value)} icon={Eye} type="password" autoComplete="new-password" />
-        <Field label="Confirm Password *" value={form.confirmPassword} onChange={(value) => update('confirmPassword', value)} type="password" autoComplete="new-password" />
-        <button className="mt-12 h-14 w-full rounded-md bg-[#0d2b49] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={submitting} type="submit">{submitting ? 'Creating account...' : 'Sign Up'}</button>
-        <p className="mt-10 text-center text-sm text-slate-500">Already Have an account <button className="ml-4 font-semibold text-blue-950" onClick={() => onNavigate('login')} type="button">Login</button></p>
+        {error && (
+          <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        {message && (
+          <div className="mt-6 flex items-start gap-3 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+            <p>{message}</p>
+          </div>
+        )}
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
+          <Field
+            label="Full Name"
+            value={form.name}
+            onChange={(value) => update("name", value)}
+            onBlur={() => markTouched("name")}
+            placeholder="Your full name"
+            error={showError("name")}
+            required
+          />
+          <Field
+            label="Email Address"
+            value={form.email}
+            onChange={(value) => update("email", value)}
+            onBlur={() => markTouched("email")}
+            autoComplete="email"
+            placeholder="name@organization.org"
+            error={showError("email")}
+            required
+          />
+          <Field
+            label="Phone Number"
+            value={form.phone}
+            onChange={(value) => update("phone", value)}
+            onBlur={() => markTouched("phone")}
+            placeholder="+250 7XX XXX XXX"
+            error={showError("phone")}
+            hint="Optional, but useful if an administrator needs to verify your request."
+          />
+          <Field
+            label="Employee ID"
+            value={form.employeeId}
+            onChange={(value) => update("employeeId", value)}
+            placeholder="Optional"
+          />
+          <label className="mt-8 block">
+            <span className="mb-2 block text-sm font-medium">
+              Department <span className="text-red-500">*</span>
+            </span>
+            <select
+              aria-invalid={Boolean(showError("department"))}
+              className={`h-14 w-full rounded-md border px-4 text-base outline-none transition focus:ring-4 ${
+                showError("department")
+                  ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                  : "border-slate-300 focus:border-blue-300 focus:ring-blue-100"
+              }`}
+              value={form.department}
+              onBlur={() => markTouched("department")}
+              onChange={(event) => update("department", event.target.value)}
+            >
+              <option>Sales</option>
+              <option>Inventory</option>
+              <option>Coordination</option>
+              <option>Administration</option>
+            </select>
+            {showError("department") && (
+              <span className="mt-2 block text-sm text-red-600">
+                {showError("department")}
+              </span>
+            )}
+          </label>
+          <label className="mt-8 block">
+            <span className="mb-2 block text-sm font-medium">
+              Role <span className="text-red-500">*</span>
+            </span>
+            <select
+              aria-invalid={Boolean(showError("role"))}
+              className={`h-14 w-full rounded-md border px-4 text-base outline-none transition focus:ring-4 ${
+                showError("role")
+                  ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                  : "border-slate-300 focus:border-blue-300 focus:ring-blue-100"
+              }`}
+              value={form.role}
+              onBlur={() => markTouched("role")}
+              onChange={(event) =>
+                update("role", event.target.value as AccessForm["role"])
+              }
+            >
+              <option value="SALES">Sales</option>
+              <option value="INVENTORY_MANAGER">Inventory Manager</option>
+              <option value="COORDINATOR">Coordinator</option>
+            </select>
+            {showError("role") && (
+              <span className="mt-2 block text-sm text-red-600">
+                {showError("role")}
+              </span>
+            )}
+          </label>
+        </div>
+        <Field
+          label="Password"
+          value={form.password}
+          onChange={(value) => update("password", value)}
+          onBlur={() => markTouched("password")}
+          icon={Eye}
+          type="password"
+          autoComplete="new-password"
+          placeholder="Create a password"
+          error={showError("password")}
+          required
+        />
+        <div className="mt-3">
+          <div className="grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((level) => (
+              <span
+                className={`h-1.5 rounded-full ${
+                  strength.score >= level ? "bg-blue-950" : "bg-slate-200"
+                }`}
+                key={level}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-slate-500">{strength.label}</p>
+        </div>
+        <Field
+          label="Confirm Password"
+          value={form.confirmPassword}
+          onChange={(value) => update("confirmPassword", value)}
+          onBlur={() => markTouched("confirmPassword")}
+          type="password"
+          autoComplete="new-password"
+          placeholder="Repeat your password"
+          error={showError("confirmPassword")}
+          required
+        />
+        <button
+          className="mt-12 h-14 w-full rounded-md bg-[#0d2b49] font-semibold text-white transition hover:bg-[#123a62] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
+          type="submit"
+        >
+          {submitting ? "Submitting request..." : "Submit Access Request"}
+        </button>
+        <p className="mt-10 text-center text-sm text-slate-500">
+          Already Have an account{" "}
+          <button
+            className="ml-4 font-semibold text-blue-950"
+            onClick={() => onNavigate("login")}
+            type="button"
+          >
+            Login
+          </button>
+        </p>
       </form>
     </main>
-  )
+  );
 }

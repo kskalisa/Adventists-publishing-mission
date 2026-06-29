@@ -1,18 +1,20 @@
 package com.adventist.backend.config;
 
-import com.adventist.backend.auth.AuthService;
-import com.adventist.backend.users.AppUser;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.List;
+import com.adventist.backend.auth.AuthService;
+import com.adventist.backend.users.AppUser;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
     private final AuthService authService;
@@ -33,9 +35,9 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
     private void authenticate(AppUser user) {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                user,
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+            user,
+            null,
+            List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }

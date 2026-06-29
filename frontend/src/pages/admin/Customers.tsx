@@ -24,7 +24,7 @@ export function Customers({ active, onNavigate, role = 'admin' }: PageProps & { 
 
   return (
     <Shell active={active} onNavigate={onNavigate} role={role}>
-      <PageHeader title="Customer Management" actions={<><Button variant="secondary" icon={Download} onClick={() => downloadCsv('customers.csv', ['Name', 'Type', 'Email', 'Phone', 'District', 'Status'], customers.map((customer) => [customer.name, customer.type, customer.email, customer.phone, customer.district, customer.active ? 'Active' : 'Inactive']))}>Export CSV</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add Customer</Button></>} />
+      <PageHeader title="Customer Management" actions={<><Button variant="secondary" icon={Download} onClick={() => downloadCsv('customers.csv', ['Name', 'Type', 'Email', 'Phone', 'District', 'Address', 'Status'], customers.map((customer) => [customer.name, customer.type, customer.email, customer.phone, customer.district, customer.address, customer.active ? 'Active' : 'Inactive']))}>Export CSV</Button><Button icon={Plus} onClick={() => setShowModal(true)}>Add Customer</Button></>} />
       <div className="grid gap-6 md:grid-cols-4">{[
         { label: 'Total Customers', value: customers.length.toString(), helper: 'Live customer records' },
         { label: 'Active Branches', value: customers.filter((customer) => customer.type === 'BRANCH').length.toString(), helper: 'Across registered districts' },
@@ -44,12 +44,12 @@ export function Customers({ active, onNavigate, role = 'admin' }: PageProps & { 
             '0',
             'RWF 0',
             <span className="flex items-center gap-2"><i className={`size-2 rounded-full ${customer.active ? 'bg-emerald-600' : 'bg-slate-500'}`} />{customer.active ? 'Active' : 'Inactive'}</span>,
-            <div className="flex gap-3 text-slate-400"><button aria-label={`View ${customer.name}`} onClick={() => setSelectedCustomer(customer)} type="button"><Eye className="size-4" /></button><button aria-label={`Export ${customer.name}`} onClick={() => downloadCsv(`customer-${customer.id}.csv`, ['Name', 'Type', 'Email', 'Phone', 'District', 'Status'], [[customer.name, customer.type, customer.email, customer.phone, customer.district, customer.active ? 'Active' : 'Inactive']])} type="button"><Download className="size-4" /></button></div>,
+            <div className="flex gap-3 text-slate-400"><button aria-label={`View ${customer.name}`} onClick={() => setSelectedCustomer(customer)} type="button"><Eye className="size-4" /></button><button aria-label={`Export ${customer.name}`} onClick={() => downloadCsv(`customer-${customer.id}.csv`, ['Name', 'Type', 'Email', 'Phone', 'District', 'Address', 'Status'], [[customer.name, customer.type, customer.email, customer.phone, customer.district, customer.address, customer.active ? 'Active' : 'Inactive']])} type="button"><Download className="size-4" /></button></div>,
           ])}
         />
       </Card>
       {showModal && <AddCustomerModal onClose={() => setShowModal(false)} onCreated={loadCustomers} />}
-      {selectedCustomer && <Modal title="Customer details" onClose={() => setSelectedCustomer(null)} footer={<Button onClick={() => setSelectedCustomer(null)}>Done</Button>}><div className="space-y-3 text-sm text-slate-600"><p><strong className="text-blue-950">{selectedCustomer.name}</strong></p><p>Email: {selectedCustomer.email ?? 'No email recorded'}</p><p>Phone: {selectedCustomer.phone ?? 'No phone recorded'}</p><p>District: {selectedCustomer.district ?? 'No district assigned'}</p><p>Status: {selectedCustomer.active ? 'Active' : 'Inactive'}</p></div></Modal>}
+      {selectedCustomer && <Modal title="Customer details" onClose={() => setSelectedCustomer(null)} footer={<Button onClick={() => setSelectedCustomer(null)}>Done</Button>}><div className="space-y-3 text-sm text-slate-600"><p><strong className="text-blue-950">{selectedCustomer.name}</strong></p><p>Email: {selectedCustomer.email ?? 'No email recorded'}</p><p>Phone: {selectedCustomer.phone ?? 'No phone recorded'}</p><p>District: {selectedCustomer.district ?? 'No district assigned'}</p><p>Address: {selectedCustomer.address ?? 'No address recorded'}</p><p>Status: {selectedCustomer.active ? 'Active' : 'Inactive'}</p></div></Modal>}
     </Shell>
   )
 }

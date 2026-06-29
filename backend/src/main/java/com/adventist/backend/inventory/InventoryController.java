@@ -1,6 +1,8 @@
 package com.adventist.backend.inventory;
 
+import com.adventist.backend.users.AppUser;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +23,7 @@ public class InventoryController {
 
     @PostMapping("/adjustments")
     @ResponseStatus(HttpStatus.CREATED)
-    StockAdjustmentDto createAdjustment(@RequestBody CreateStockAdjustmentRequest request) {
-        return service.createAdjustment(request);
+    StockAdjustmentDto createAdjustment(@RequestBody CreateStockAdjustmentRequest request, @AuthenticationPrincipal AppUser user) {
+        return service.createAdjustment(request, user);
     }
 }

@@ -1,5 +1,6 @@
 package com.adventist.backend.sales;
 
+import com.adventist.backend.customers.Customer;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
@@ -14,8 +15,14 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     List<Sale> findTop10ByOrderByCreatedAtDesc();
 
     @EntityGraph(attributePaths = {"customer", "cashier", "items", "items.book"})
+    List<Sale> findAllByOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"customer", "cashier", "items", "items.book"})
     @Query("select s from Sale s where s.id = :id")
     java.util.Optional<Sale> findDetailedById(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = {"customer", "cashier", "items", "items.book"})
+    List<Sale> findByCustomerAndHiddenByCustomerFalseOrderByCreatedAtDesc(Customer customer);
 
     @Query("select coalesce(sum(s.total), 0) from Sale s where s.status = com.adventist.backend.sales.SaleStatus.PAID")
     BigDecimal totalRevenue();

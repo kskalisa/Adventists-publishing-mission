@@ -1,3 +1,4 @@
+export { InventoryBookRequests } from './BookRequests'
 export { InventoryManagerDashboard } from './InventoryManagerDashboard'
 export { InventoryManagerDashboardScreen } from './Dashboard'
 export { BookInventoryScreen } from './BookInventory'

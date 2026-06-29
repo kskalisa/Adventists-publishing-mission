@@ -1,11 +1,11 @@
-import { AlertCircle, ArrowDown, ArrowUp, BookOpen, Calendar, Check, CircleX, ClipboardList, Download, Edit3, Eye, Grid2X2, MapPin, Package, Plus, Printer, RefreshCcw, Search, Shield, ShoppingCart, Trash2, TrendingUp } from 'lucide-react'
+import { AlertCircle, ArrowDown, ArrowUp, BookOpen, Check, CircleX, ClipboardList, Download, Edit3, Eye, MapPin, Package, Plus, Printer, RefreshCcw, Search, Shield, ShoppingCart, Trash2, TrendingUp } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AddItemModal } from '../../components/forms'
 import { Shell } from '../../components/layout'
-import { Badge, Button, Card, Modal, Progress, SimpleTable, StatCard } from '../../components/ui'
-import { downloadCsv, printCurrentPage } from '../../lib/actions'
-import { createStockAdjustment, deleteBook, formatDate, getCurrentUser, listBooks, listSales, listStockAdjustments, money } from '../../lib/api'
-import type { AdjustmentType, Book, Sale, StockAdjustment } from '../../lib/api'
+import { Badge, Button, Card, Modal, Pagination, Progress, SimpleTable, StatCard, paginate } from '../../components/ui'
+import { downloadCsv, downloadReportCsv, exportReportPdf, printReport } from '../../lib/actions'
+import { createProductionOrder, createStockAdjustment, deleteBook, formatDate, getCurrentUser, listBooks, listProductionOrders, listSales, listStockAdjustments, money } from '../../lib/api'
+import type { AdjustmentType, Book, ProductionOrder, Sale, StockAdjustment } from '../../lib/api'
 import { coverImages, people } from '../../data/assets'
 import type { PageProps } from '../../types/navigation'
 
@@ -16,6 +16,7 @@ type InventoryData = {
   books: Book[]
   sales: Sale[]
   adjustments: StockAdjustment[]
+  orders: ProductionOrder[]
   error: string
   reload: () => void
 }
@@ -33,17 +34,18 @@ function useInventoryData(): InventoryData {
   const [books, setBooks] = useState<Book[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
+  const [orders, setOrders] = useState<ProductionOrder[]>([])
   const [error, setError] = useState('')
 
   const reload = () => {
     setError('')
-    Promise.all([listBooks(), listSales(), listStockAdjustments()])
-      .then(([books, sales, adjustments]) => { setBooks(books); setSales(sales); setAdjustments(adjustments) })
+    Promise.all([listBooks(), listSales(), listStockAdjustments(), listProductionOrders()])
+      .then(([books, sales, adjustments, orders]) => { setBooks(books); setSales(sales); setAdjustments(adjustments); setOrders(orders) })
       .catch((error) => setError(error instanceof Error ? error.message : 'Unable to load inventory data.'))
   }
 
   useEffect(reload, [])
-  return { books, sales, adjustments, error, reload }
+  return { books, sales, adjustments, orders, error, reload }
 }
 
 function bookStatusLabel(status: Book['status']) {
@@ -84,14 +86,55 @@ function BookDetailsModal({ book, onClose }: { book: Book; onClose: () => void }
   )
 }
 
-function ReprintPlanModal({ book, onClose }: { book: Book; onClose: () => void }) {
+function ReprintPlanModal({ book, onClose, onCreated }: { book: Book; onClose: () => void; onCreated: () => void }) {
   const suggested = Math.max(book.reorderLevel * 5 - book.stockQuantity, 0)
+  const [quantity, setQuantity] = useState(suggested.toString())
+  const [printer, setPrinter] = useState('Coordinator to assign')
+  const [notes, setNotes] = useState(`Inventory requested reprint review for ${book.title}.`)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    const qty = Number(quantity)
+    setError('')
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setError('Enter a requested quantity greater than zero.')
+      return
+    }
+    if (!printer.trim()) {
+      setError('Add a printer note or leave "Coordinator to assign".')
+      return
+    }
+    setSaving(true)
+    try {
+      await createProductionOrder({
+        bookId: book.id,
+        quantity: qty,
+        printer,
+        notes,
+        estimatedCost: qty * book.price,
+      })
+      onCreated()
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to send reprint request.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <NoticeModal title="Reprint planning guidance" actionLabel="Close" onClose={onClose}>
+    <Modal title="Send reprint request" onClose={onClose} size="lg" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>{saving ? 'Sending...' : 'Send to Coordinator'}</Button></>}>
+      {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
       <h3 className="text-lg font-bold text-blue-950">{book.title}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">Based on the current stock level of <strong>{book.stockQuantity}</strong> and reorder level of <strong>{book.reorderLevel}</strong>, plan approximately <strong>{suggested} units</strong>.</p>
-      <p className="mt-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-800">Next step: create a stock adjustment when printed copies are received, or coordinate the production order from the Coordinator dashboard.</p>
-    </NoticeModal>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label><span className="mb-2 block text-sm font-medium">Requested Quantity</span><input className="h-10 w-full rounded-md border border-slate-200 px-3" inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
+        <label><span className="mb-2 block text-sm font-medium">Printer / Assignment</span><input className="h-10 w-full rounded-md border border-slate-200 px-3" value={printer} onChange={(event) => setPrinter(event.target.value)} /></label>
+        <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium">Coordinator Note</span><input className="h-10 w-full rounded-md border border-slate-200 px-3" value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+      </div>
+      <p className="mt-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-800">This creates a planned production order. The Coordinator will approve, schedule, track budget, and receive it into stock.</p>
+    </Modal>
   )
 }
 
@@ -158,6 +201,19 @@ export function BookInventoryScreen({ active, onNavigate, data = useInventoryDat
   const [deletingBook, setDeletingBook] = useState<Book | null>(null)
   const [showBookModal, setShowBookModal] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('ALL')
+  const [status, setStatus] = useState<Book['status'] | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
+  const categories = [...new Set(data.books.map((book) => book.category))].sort()
+  const filteredBooks = data.books.filter((book) => {
+    const term = query.trim().toLowerCase()
+    const matchesQuery = !term || [book.title, book.author, book.isbn, book.category].some((value) => value.toLowerCase().includes(term))
+    const matchesCategory = category === 'ALL' || book.category === category
+    const matchesStatus = status === 'ALL' || book.status === status
+    return matchesQuery && matchesCategory && matchesStatus
+  })
+  const visibleBooks = paginate(filteredBooks, page, 10)
 
   const removeBook = async () => {
     if (!deletingBook) return
@@ -173,9 +229,10 @@ export function BookInventoryScreen({ active, onNavigate, data = useInventoryDat
 
   return (
     <Shell active={active} onNavigate={onNavigate} role="inventory-manager" title="Book Inventory">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold text-blue-950">Book Inventory</h1><div className="flex gap-3"><Button variant="secondary" icon={Grid2X2}>All Categories</Button><Button variant="secondary" icon={Download} onClick={() => downloadCsv('book-inventory.csv', ['Title', 'Author', 'ISBN', 'Category', 'Price', 'Stock', 'Reorder', 'Status'], rowsForExport(data.books))}>Export</Button><Button icon={Plus} onClick={() => { setEditingBook(undefined); setShowBookModal(true) }}>Add Book</Button></div></div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold text-blue-950">Book Inventory</h1><div className="flex gap-3"><Button variant="secondary" icon={Download} onClick={() => downloadCsv('book-inventory.csv', ['Title', 'Author', 'ISBN', 'Category', 'Price', 'Stock', 'Reorder', 'Status'], rowsForExport(filteredBooks))}>Export Visible</Button><Button icon={Plus} onClick={() => { setEditingBook(undefined); setShowBookModal(true) }}>Add Book</Button></div></div>
       {data.error && <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{data.error}</p>}
-      <Card className="p-5"><InventoryTable books={data.books} onView={setSelectedBook} onEdit={(book) => { setEditingBook(book); setShowBookModal(true) }} onDelete={setDeletingBook} /></Card>
+      <Card className="mb-6 p-4"><div className="grid gap-3 md:grid-cols-[1fr_220px_190px_110px]"><input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100" placeholder="Search title, author, ISBN, or category" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} /><select className="h-10 rounded-md border border-slate-200 px-3 text-sm" value={category} onChange={(event) => { setCategory(event.target.value); setPage(1) }}><option value="ALL">All Categories</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select><select className="h-10 rounded-md border border-slate-200 px-3 text-sm" value={status} onChange={(event) => { setStatus(event.target.value as Book['status'] | 'ALL'); setPage(1) }}><option value="ALL">All Statuses</option><option value="IN_STOCK">In Stock</option><option value="LOW_STOCK">Low Stock</option><option value="OUT_OF_STOCK">Out of Stock</option></select><span className="self-center text-sm text-slate-500">Showing <strong className="text-slate-900">{filteredBooks.length}</strong></span></div></Card>
+      <Card className="p-5"><InventoryTable books={visibleBooks} onView={setSelectedBook} onEdit={(book) => { setEditingBook(book); setShowBookModal(true) }} onDelete={setDeletingBook} /><Pagination page={page} pageSize={10} total={filteredBooks.length} onPageChange={setPage} /></Card>
       {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} />}
       {showBookModal && <AddItemModal book={editingBook} onClose={() => { setShowBookModal(false); setEditingBook(undefined) }} onCreated={data.reload} />}
       {deletingBook && <Modal title="Delete book?" onClose={() => { setDeletingBook(null); setDeleteError('') }} footer={<><Button variant="secondary" onClick={() => { setDeletingBook(null); setDeleteError('') }}>Cancel</Button><Button variant="danger" icon={Trash2} onClick={removeBook}>Delete Book</Button></>}>{deleteError && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{deleteError}</p>}<p className="text-sm leading-6 text-slate-600">This will permanently remove <strong className="text-blue-950">{deletingBook.title}</strong> from the catalog. If this book already appears in sales or stock history, deletion may be blocked to protect records.</p></Modal>}
@@ -283,42 +340,84 @@ export function AdjustmentsScreen({ active, onNavigate, data = useInventoryData(
 export function ReprintAlertsScreen({ active, onNavigate, data = useInventoryData() }: PageProps & { data?: InventoryData }) {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
   const recommended = data.books.filter((book) => book.stockQuantity <= book.reorderLevel * 2).sort((a, b) => a.stockQuantity - b.stockQuantity)
+  const openOrders = data.orders.filter((order) => order.status !== 'CANCELLED' && order.status !== 'RECEIVED')
   return (
     <Shell active={active} onNavigate={onNavigate} role="inventory-manager" title="Reprint Alerts">
-      <div className="grid gap-6 md:grid-cols-4"><StatCard stat={{ label: 'Reprint Recommendations', value: recommended.length.toString(), tone: 'red' }} /><StatCard stat={{ label: 'Critical Titles', value: recommended.filter((book) => book.stockQuantity <= book.reorderLevel).length.toString(), tone: 'orange' }} /><StatCard stat={{ label: 'Estimated Units', value: recommended.reduce((sum, book) => sum + Math.max(book.reorderLevel * 5 - book.stockQuantity, 0), 0).toString(), tone: 'blue' }} /><StatCard stat={{ label: 'Catalog Titles', value: data.books.length.toString() }} /></div>
+      <div className="grid gap-6 md:grid-cols-4"><StatCard stat={{ label: 'Reprint Recommendations', value: recommended.length.toString(), tone: 'red' }} /><StatCard stat={{ label: 'Critical Titles', value: recommended.filter((book) => book.stockQuantity <= book.reorderLevel).length.toString(), tone: 'orange' }} /><StatCard stat={{ label: 'Open Production Requests', value: openOrders.length.toString(), tone: 'blue' }} /><StatCard stat={{ label: 'Catalog Titles', value: data.books.length.toString() }} /></div>
       <Card className="mt-6 p-5"><div className="mb-5 flex items-center justify-between"><h1 className="text-xl font-bold">Recommended Reprints</h1><Button variant="secondary" icon={Download} onClick={() => downloadCsv('reprint-recommendations.csv', ['Title', 'Current Stock', 'Reorder Level', 'Suggested Qty', 'Status'], recommended.map((book) => [book.title, book.stockQuantity, book.reorderLevel, Math.max(book.reorderLevel * 5 - book.stockQuantity, 0), book.status]))}>Export List</Button></div><SimpleTable headers={['Book', 'Current Stock', 'Reorder Level', 'Suggested Qty', 'Status', 'Action']} rows={recommended.map((book) => [book.title, book.stockQuantity.toString(), book.reorderLevel.toString(), Math.max(book.reorderLevel * 5 - book.stockQuantity, 0).toString(), <Badge tone={statusTone[book.status]}>{bookStatusLabel(book.status)}</Badge>, <Button className="h-8 px-4" onClick={() => setSelectedBook(book)}>Plan</Button>])} /></Card>
-      {selectedBook && <ReprintPlanModal book={selectedBook} onClose={() => setSelectedBook(null)} />}
+      <Card className="mt-6 p-5"><h2 className="mb-5 font-bold text-blue-950">Coordinator Production Queue</h2><SimpleTable headers={['Order', 'Book', 'Qty', 'Owner', 'Status']} rows={openOrders.slice(0, 8).map((order) => [`#PO-${order.id.toString().padStart(4, '0')}`, order.bookTitle, order.quantity.toLocaleString(), order.createdByName ?? 'Inventory', <Badge tone={order.status === 'PLANNED' ? 'orange' : 'blue'}>{order.status.replaceAll('_', ' ')}</Badge>])} /></Card>
+      {selectedBook && <ReprintPlanModal book={selectedBook} onClose={() => setSelectedBook(null)} onCreated={data.reload} />}
     </Shell>
   )
 }
 
 export function ReportsScreen({ active, onNavigate, data = useInventoryData() }: PageProps & { data?: InventoryData }) {
+  const [stockFilter, setStockFilter] = useState<Book['status'] | 'ALL'>('ALL')
+  const [movementFilter, setMovementFilter] = useState<AdjustmentType | 'ALL'>('ALL')
+  const filteredBooks = data.books.filter((book) => stockFilter === 'ALL' || book.status === stockFilter)
+  const filteredAdjustments = data.adjustments.filter((item) => movementFilter === 'ALL' || item.type === movementFilter)
+  const filterLabel = [`Stock: ${stockFilter === 'ALL' ? 'All' : bookStatusLabel(stockFilter)}`, `Movement: ${movementFilter === 'ALL' ? 'All' : adjustmentLabel(movementFilter)}`].join(' | ')
   const revenue = data.sales.reduce((sum, sale) => sum + sale.total, 0)
   const booksSold = data.sales.reduce((sum, sale) => sum + sale.items.reduce((inner, item) => inner + item.quantity, 0), 0)
-  const stockValue = data.books.reduce((sum, book) => sum + book.price * book.stockQuantity, 0)
-  const categoryCounts = [...data.books.reduce((map, book) => map.set(book.category, (map.get(book.category) ?? 0) + 1), new Map<string, number>()).entries()]
-  const lowStock = data.books.filter((book) => book.status === 'LOW_STOCK').length
-  const outOfStock = data.books.filter((book) => book.status === 'OUT_OF_STOCK').length
-  const healthyStock = data.books.length ? Math.round(((data.books.length - lowStock - outOfStock) / data.books.length) * 100) : 0
+  const stockValue = filteredBooks.reduce((sum, book) => sum + book.price * book.stockQuantity, 0)
+  const categoryCounts = [...filteredBooks.reduce((map, book) => map.set(book.category, (map.get(book.category) ?? 0) + 1), new Map<string, number>()).entries()]
+  const lowStock = filteredBooks.filter((book) => book.status === 'LOW_STOCK').length
+  const outOfStock = filteredBooks.filter((book) => book.status === 'OUT_OF_STOCK').length
+  const healthyStock = filteredBooks.length ? Math.round(((filteredBooks.length - lowStock - outOfStock) / filteredBooks.length) * 100) : 0
   const topTitles = [...data.sales.reduce((map, sale) => {
     sale.items.forEach((item) => map.set(item.title, (map.get(item.title) ?? 0) + item.quantity))
     return map
   }, new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const report = {
+    title: `Inventory Reports - ${stockFilter === 'ALL' ? 'All Stock' : bookStatusLabel(stockFilter)}`,
+    subtitle: 'Stock health, sales impact, movements, and category coverage from live records.',
+    filename: 'inventory-reports',
+    filterLabel,
+    metrics: [
+      { label: 'Revenue Impact', value: money(revenue), helper: `${data.sales.length} recent sale(s)` },
+      { label: 'Books Sold', value: booksSold, helper: 'Units leaving stock' },
+      { label: 'Stock Value', value: money(stockValue), helper: `${filteredBooks.length} catalog title(s)` },
+      { label: 'Healthy Stock', value: `${healthyStock}%`, helper: `${lowStock + outOfStock} title(s) need attention` },
+    ],
+    tables: [
+      {
+        title: 'Recent Sales Impact',
+        headers: ['Invoice', 'Customer', 'Units', 'Total', 'Date'],
+        rows: data.sales.slice(0, 20).map((sale) => [`INV-${sale.id.toString().padStart(5, '0')}`, sale.customerName, sale.items.reduce((sum, item) => sum + item.quantity, 0), money(sale.total), formatDate(sale.createdAt)]),
+      },
+      {
+        title: 'Top Moving Titles',
+        headers: ['Title', 'Units Sold'],
+        rows: topTitles.map(([title, count]) => [title, count]),
+      },
+      {
+        title: 'Titles by Category',
+        headers: ['Category', 'Titles'],
+        rows: categoryCounts.map(([category, count]) => [category, count]),
+      },
+      {
+        title: 'Recent Stock Movements',
+        headers: ['Book', 'Type', 'Quantity', 'Date'],
+        rows: filteredAdjustments.slice(0, 20).map((item) => [item.bookTitle, adjustmentLabel(item.type), item.quantityDelta, formatDate(item.createdAt)]),
+      },
+    ],
+  }
 
   return (
     <Shell active={active} onNavigate={onNavigate} role="inventory-manager" title="Reports">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-bold text-blue-950">Inventory Reports</h1><p className="text-sm text-slate-500">Live stock health, sales impact, and movement summaries.</p></div><div className="flex gap-3"><Button variant="secondary" icon={Calendar}>Live Data</Button><Button icon={Download} onClick={printCurrentPage}>Export Report</Button></div></div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-bold text-blue-950">Inventory Reports</h1><p className="text-sm text-slate-500">Live stock health, sales impact, and movement summaries.</p></div><div className="flex gap-3"><Button variant="secondary" icon={Download} onClick={() => downloadReportCsv(report)}>CSV</Button><Button icon={Download} onClick={() => exportReportPdf(report)}>PDF</Button></div></div>
       {data.error && <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{data.error}</p>}
-      <div className="grid gap-6 md:grid-cols-4"><StatCard stat={{ label: 'Revenue Impact', value: money(revenue), icon: TrendingUp, tone: 'green', helper: `${data.sales.length} recent sale(s)` }} /><StatCard stat={{ label: 'Books Sold', value: booksSold.toString(), icon: Package, tone: 'blue', helper: 'Units leaving stock' }} /><StatCard stat={{ label: 'Stock Value', value: money(stockValue), icon: RefreshCcw, helper: `${data.books.length} catalog titles` }} /><StatCard stat={{ label: 'Healthy Stock', value: `${healthyStock}%`, icon: ShoppingCart, tone: healthyStock < 70 ? 'orange' : 'green', helper: `${lowStock + outOfStock} title(s) need attention` }} /></div>
+      <Card className="mb-6 p-4"><div className="grid gap-3 md:grid-cols-2"><select className="h-10 rounded-md border border-slate-200 px-3 text-sm" value={stockFilter} onChange={(event) => setStockFilter(event.target.value as Book['status'] | 'ALL')}><option value="ALL">All Stock Statuses</option><option value="IN_STOCK">In Stock</option><option value="LOW_STOCK">Low Stock</option><option value="OUT_OF_STOCK">Out of Stock</option></select><select className="h-10 rounded-md border border-slate-200 px-3 text-sm" value={movementFilter} onChange={(event) => setMovementFilter(event.target.value as AdjustmentType | 'ALL')}><option value="ALL">All Movement Types</option><option value="RECEIVE_SHIPMENT">Receive Shipment</option><option value="REPRINT_RECEIVED">Reprint Received</option><option value="RETURN">Return</option><option value="CORRECTION">Correction</option><option value="DAMAGE">Damage</option></select></div></Card>
+      <div className="grid gap-6 md:grid-cols-4"><StatCard stat={{ label: 'Revenue Impact', value: money(revenue), icon: TrendingUp, tone: 'green', helper: `${data.sales.length} recent sale(s)` }} /><StatCard stat={{ label: 'Books Sold', value: booksSold.toString(), icon: Package, tone: 'blue', helper: 'Units leaving stock' }} /><StatCard stat={{ label: 'Stock Value', value: money(stockValue), icon: RefreshCcw, helper: `${filteredBooks.length} catalog titles` }} /><StatCard stat={{ label: 'Healthy Stock', value: `${healthyStock}%`, icon: ShoppingCart, tone: healthyStock < 70 ? 'orange' : 'green', helper: `${lowStock + outOfStock} title(s) need attention` }} /></div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_340px]">
         <Card className="p-6"><div className="mb-5 flex items-center justify-between"><div><h2 className="font-bold text-blue-950">Sales Performance</h2><p className="text-sm text-slate-500">Recent transaction totals affecting inventory.</p></div><Badge tone="blue">{money(revenue)}</Badge></div><MiniBarChart values={data.sales.map((sale) => sale.total)} /></Card>
-        <Card className="p-6"><h2 className="font-bold text-blue-950">Stock Health</h2><div className="mt-6 space-y-5"><Progress label="Healthy titles" value={`${healthyStock}%`} width={healthyStock} color="bg-emerald-600" /><Progress label="Low stock titles" value={`${lowStock}`} width={Math.min((lowStock / Math.max(data.books.length, 1)) * 100, 100)} color="bg-amber-500" /><Progress label="Out of stock titles" value={`${outOfStock}`} width={Math.min((outOfStock / Math.max(data.books.length, 1)) * 100, 100)} color="bg-red-500" /></div></Card>
+        <Card className="p-6"><h2 className="font-bold text-blue-950">Stock Health</h2><div className="mt-6 space-y-5"><Progress label="Healthy titles" value={`${healthyStock}%`} width={healthyStock} color="bg-emerald-600" /><Progress label="Low stock titles" value={`${lowStock}`} width={Math.min((lowStock / Math.max(filteredBooks.length, 1)) * 100, 100)} color="bg-amber-500" /><Progress label="Out of stock titles" value={`${outOfStock}`} width={Math.min((outOfStock / Math.max(filteredBooks.length, 1)) * 100, 100)} color="bg-red-500" /></div></Card>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_340px]">
         <Card className="p-6"><h2 className="mb-5 font-bold text-blue-950">Recent Sales Impact</h2><SimpleTable headers={['Invoice', 'Customer', 'Units', 'Total', 'Date']} rows={data.sales.slice(0, 8).map((sale) => [`INV-${sale.id.toString().padStart(5, '0')}`, sale.customerName, sale.items.reduce((sum, item) => sum + item.quantity, 0).toString(), money(sale.total), formatDate(sale.createdAt)])} /></Card>
         <Card className="p-6"><h2 className="font-bold text-blue-950">Top Moving Titles</h2><div className="mt-5 space-y-4">{topTitles.length ? topTitles.map(([title, count]) => <Progress key={title} label={title} value={`${count} sold`} width={Math.min(count * 12, 100)} color="bg-blue-600" />) : <p className="text-sm text-slate-500">No sales recorded yet.</p>}</div><h2 className="mt-8 font-bold text-blue-950">Titles by Category</h2><div className="mt-5">{categoryCounts.map(([category, count]) => <Progress key={category} label={category} value={`${count}`} width={Math.min((count / Math.max(data.books.length, 1)) * 100, 100)} color="bg-slate-700" />)}</div></Card>
       </div>
-      <Card className="mt-6 p-5"><div className="flex items-center justify-between"><h2 className="font-bold text-blue-950">Generated Reports</h2><Button variant="secondary" onClick={printCurrentPage}>Print</Button></div><SimpleTable headers={['Report Name', 'Type', 'Records', 'Generated']} rows={[[ 'Inventory Valuation', 'Inventory', data.books.length.toString(), new Date().toLocaleString() ], [ 'Sales Summary', 'Sales', data.sales.length.toString(), new Date().toLocaleString() ], [ 'Stock Movements', 'Inventory', data.adjustments.length.toString(), new Date().toLocaleString() ]]} /></Card>
+      <Card className="mt-6 p-5"><div className="flex items-center justify-between"><h2 className="font-bold text-blue-950">Generated Reports</h2><Button variant="secondary" onClick={() => printReport(report)}>Print</Button></div><SimpleTable headers={['Report Name', 'Type', 'Records', 'Generated']} rows={[[ 'Inventory Valuation', 'Inventory', data.books.length.toString(), new Date().toLocaleString() ], [ 'Sales Summary', 'Sales', data.sales.length.toString(), new Date().toLocaleString() ], [ 'Stock Movements', 'Inventory', data.adjustments.length.toString(), new Date().toLocaleString() ]]} /></Card>
     </Shell>
   )
 }

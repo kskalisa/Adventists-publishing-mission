@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createBook, updateBook } from '../../lib/api'
 import type { Book } from '../../lib/api'
 import { readImageAsDataUrl } from '../../lib/files'
+import { firstError, positiveNumber, required, wholeNumber } from '../../lib/validation'
 import { Button, Modal } from '../ui'
 
 export type StoredInventoryItem = {
@@ -35,6 +36,18 @@ export function AddItemModal({ onClose, onCreated, book }: { onClose: () => void
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
 
   const submit = async () => {
+    const validationError = firstError([
+      required(form.title, 'Book title'),
+      required(form.author, 'Author'),
+      required(form.isbn, 'ISBN / SKU'),
+      required(form.category, 'Category'),
+      positiveNumber(form.price, 'Price'),
+      wholeNumber(form.stock, 'Initial stock'),
+    ])
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setSubmitting(true)
     setError('')
     try {

@@ -1,17 +1,18 @@
 package com.adventist.backend.auth;
 
-import com.adventist.backend.users.AppUser;
-import com.adventist.backend.users.AppUserRepository;
-import com.adventist.backend.users.UserDto;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Optional;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.adventist.backend.users.AppUser;
+import com.adventist.backend.users.AppUserRepository;
+import com.adventist.backend.users.UserDto;
 
 @Service
 public class AuthService {

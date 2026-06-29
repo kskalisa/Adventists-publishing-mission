@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PaymentSuccessModal } from '../../components/forms'
 import { coverImages } from '../../data/assets'
 import { createSale, getCurrentUser, listBooks, listCustomers, money } from '../../lib/api'
-import type { Book, Customer, Sale } from '../../lib/api'
+import type { Book, Customer, PaymentMethod, Sale } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
 import { Button, Card, SearchBox } from '../../components/ui'
@@ -18,6 +18,9 @@ export function PointOfSale({ active, onNavigate }: PageProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerId, setCustomerId] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
+  const [paymentReference, setPaymentReference] = useState('')
+  const [amountPaid, setAmountPaid] = useState('')
   const [error, setError] = useState('')
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
   const currentUser = getCurrentUser()
@@ -61,9 +64,15 @@ export function PointOfSale({ active, onNavigate }: PageProps) {
         cashierId: currentUser?.id,
         status: 'PAID',
         discount: 0,
+        paymentMethod,
+        paymentReference: paymentReference || undefined,
+        amountPaid: amountPaid ? Number(amountPaid) : total,
+        fulfillmentMethod: 'PICKUP',
         items: cart.map((item) => ({ bookId: item.book.id, quantity: item.quantity })),
       })
       setCart([])
+      setPaymentReference('')
+      setAmountPaid('')
       setCompletedSale(sale)
       setBooks(await listBooks())
     } catch (error) {
@@ -89,6 +98,26 @@ export function PointOfSale({ active, onNavigate }: PageProps) {
           <div className="mt-auto border-t border-slate-100 pt-5">
             {[['Subtotal', money(subtotal)], ['Discount', money(0)], ['Tax (18%)', money(tax)]].map(([label, value]) => <div className="mb-2 flex justify-between text-slate-500" key={label}><span>{label}</span><span>{value}</span></div>)}
             <div className="mt-5 flex justify-between text-2xl font-bold"><span>Total</span><span>{money(total)}</span></div>
+            <div className="mt-5 grid gap-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Payment method</span>
+                <select className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                  <option value="CASH">Cash</option>
+                  <option value="MOMO">Mobile Money</option>
+                  <option value="CARD">Card</option>
+                  <option value="BANK_TRANSFER">Bank transfer</option>
+                  <option value="CREDIT">Credit</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Reference</span>
+                <input className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" placeholder="MoMo transaction, cheque, or transfer ref" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Amount paid</span>
+                <input className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" min="0" max={total} type="number" placeholder={total.toFixed(0)} value={amountPaid} onChange={(event) => setAmountPaid(event.target.value)} />
+              </label>
+            </div>
             <div className="mt-6 grid grid-cols-2 gap-3"><Button variant="danger" onClick={() => setCart([])}>Cancel</Button><Button variant="secondary">Hold Order</Button></div>
             <button className="mt-3 h-12 w-full rounded-md bg-blue-600 font-semibold text-white transition hover:bg-blue-700" onClick={submitSale} type="button">Proceed to Payment</button>
           </div>

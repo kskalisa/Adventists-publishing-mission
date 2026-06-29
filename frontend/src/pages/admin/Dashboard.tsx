@@ -1,7 +1,7 @@
 import { AlertTriangle, Package, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getDashboardSummary, money } from '../../lib/api'
-import type { DashboardSummary } from '../../lib/api'
+import { getDashboardSummary, listAuditLogs, money } from '../../lib/api'
+import type { AuditLog, DashboardSummary } from '../../lib/api'
 import type { PageProps } from '../../types/navigation'
 import { Shell } from '../../components/layout'
 import { Badge, Card, SimpleTable, StatCard } from '../../components/ui'
@@ -24,9 +24,11 @@ function Announcement({ title, tone }: { title: string; tone: 'gray' | 'blue' | 
 
 export function Dashboard({ active, onNavigate }: PageProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [error, setError] = useState('')
   useEffect(() => {
     getDashboardSummary().then(setSummary).catch((error) => setError(error instanceof Error ? error.message : 'Unable to load dashboard.'))
+    listAuditLogs().then(setAuditLogs).catch(() => undefined)
   }, [])
 
   const stats = [
@@ -105,8 +107,13 @@ export function Dashboard({ active, onNavigate }: PageProps) {
           <Card className="p-5">
             <h2 className="mb-5 font-semibold">Audit Logs</h2>
             <SimpleTable
-              headers={['Event', 'Resource', 'Date', 'Status']}
-              rows={(summary?.recentSales ?? []).slice(0, 3).map((sale) => ['Sale recorded', `Invoice #${sale.id}`, new Date(sale.createdAt).toLocaleString(), <Badge tone="green">{sale.status}</Badge>])}
+              headers={['Actor', 'Action', 'Resource', 'Date']}
+              rows={(auditLogs.length ? auditLogs.slice(0, 8) : [{ id: 0, actorName: 'System', action: 'NO_ACTIVITY', resourceType: 'Audit', resourceId: null, summary: 'No audited activity yet', createdAt: new Date().toISOString(), actorId: null }]).map((log) => [
+                log.actorName,
+                <div><Badge tone="blue">{log.action.replaceAll('_', ' ')}</Badge><p className="mt-1 text-xs text-slate-500">{log.summary}</p></div>,
+                `${log.resourceType}${log.resourceId ? ` #${log.resourceId}` : ''}`,
+                new Date(log.createdAt).toLocaleString(),
+              ])}
             />
           </Card>
         </div>

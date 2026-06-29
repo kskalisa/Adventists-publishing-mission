@@ -28,8 +28,19 @@ public class CustomerService {
         if (request.name() == null || request.name().isBlank()) {
             throw new IllegalArgumentException("name is required");
         }
+        String email = cleanOptional(request.email());
+        if (email != null && repository.findByEmailIgnoreCase(email).isPresent()) {
+            throw new IllegalArgumentException("customer email is already registered");
+        }
         CustomerType type = request.type() == null ? CustomerType.INDIVIDUAL : request.type();
-        Customer customer = new Customer(request.name().trim(), type, request.email(), request.phone(), request.district());
+        Customer customer = new Customer(request.name().trim(), type, email, cleanOptional(request.phone()), cleanOptional(request.district()), cleanOptional(request.address()));
         return CustomerDto.from(repository.save(customer));
+    }
+
+    private String cleanOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

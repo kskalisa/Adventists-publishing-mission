@@ -12,7 +12,7 @@ function SettingsCard({ title, subtitle, fields, upload = false }: { title: stri
 
   useEffect(() => {
     if (upload) {
-      setLogo(window.localStorage.getItem('adventist-logo') ?? '')
+      setLogo(window.localStorage.getItem('adventist-logo') ?? '/adventist-logo.svg')
     }
   }, [upload])
 

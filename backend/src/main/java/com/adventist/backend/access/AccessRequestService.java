@@ -1,5 +1,6 @@
 package com.adventist.backend.access;
 
+import com.adventist.backend.audit.AuditService;
 import com.adventist.backend.common.ResourceNotFoundException;
 import com.adventist.backend.users.AppUser;
 import com.adventist.backend.users.AppUserRepository;
@@ -16,11 +17,13 @@ public class AccessRequestService {
     private final AccessRequestRepository accessRequestRepository;
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
-    public AccessRequestService(AccessRequestRepository accessRequestRepository, AppUserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AccessRequestService(AccessRequestRepository accessRequestRepository, AppUserRepository userRepository, PasswordEncoder passwordEncoder, AuditService auditService) {
         this.accessRequestRepository = accessRequestRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -55,20 +58,23 @@ public class AccessRequestService {
     }
 
     @Transactional
-    public UserDto approve(Long id) {
+    public UserDto approve(Long id, AppUser actor) {
         AccessRequest request = findPending(id);
         if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
             throw new IllegalArgumentException("email is already registered");
         }
         AppUser user = new AppUser(request.getName(), request.getEmail(), request.getRequestedRole(), request.getPasswordHash());
         request.setStatus(AccessRequestStatus.APPROVED);
-        return UserDto.from(userRepository.save(user));
+        AppUser saved = userRepository.save(user);
+        auditService.record(actor, "ACCESS_REQUEST_APPROVED", "ACCESS_REQUEST", request.getId(), "Approved access for " + request.getEmail() + " as " + request.getRequestedRole());
+        return UserDto.from(saved);
     }
 
     @Transactional
-    public AccessRequestDto reject(Long id) {
+    public AccessRequestDto reject(Long id, AppUser actor) {
         AccessRequest request = findPending(id);
         request.setStatus(AccessRequestStatus.REJECTED);
+        auditService.record(actor, "ACCESS_REQUEST_REJECTED", "ACCESS_REQUEST", request.getId(), "Rejected access request for " + request.getEmail());
         return AccessRequestDto.from(request);
     }
 

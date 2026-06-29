@@ -66,9 +66,9 @@ public class DevelopmentDataSeeder {
             ));
 
             List<Customer> customers = customerRepository.saveAll(List.of(
-                    new Customer("Jean-Claude M.", CustomerType.BRANCH, "jean.claude@adventist.rw", "+250788000001", "Kigali Center"),
-                    new Customer("Butare SDA Church", CustomerType.CHURCH, "butare@adventist.rw", "+250788000002", "Huye District"),
-                    new Customer("Gitwe Adventist College", CustomerType.SCHOOL, "gitwe@adventist.rw", "+250788000003", "Ruhango")
+                    new Customer("Jean-Claude M.", CustomerType.BRANCH, "jean.claude@adventist.rw", "+250788000001", "Kigali Center", "Kigali Center branch office"),
+                    new Customer("Butare SDA Church", CustomerType.CHURCH, "butare@adventist.rw", "+250788000002", "Huye District", "Butare SDA Church, Huye"),
+                    new Customer("Gitwe Adventist College", CustomerType.SCHOOL, "gitwe@adventist.rw", "+250788000003", "Ruhango", "Gitwe Adventist College, Ruhango")
             ));
 
             Sale sale = new Sale(customers.get(0), users.get(1), SaleStatus.PAID, BigDecimal.ZERO);

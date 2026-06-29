@@ -7,9 +7,10 @@ type ButtonProps = {
   icon?: LucideIcon
   onClick?: () => void
   className?: string
+  disabled?: boolean
 }
 
-export function Button({ children, variant = 'primary', icon: Icon, onClick, className = '' }: ButtonProps) {
+export function Button({ children, variant = 'primary', icon: Icon, onClick, className = '', disabled = false }: ButtonProps) {
   const styles = {
     primary: 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700',
     secondary: 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50',
@@ -19,7 +20,8 @@ export function Button({ children, variant = 'primary', icon: Icon, onClick, cla
 
   return (
     <button
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition ${styles[variant]} ${className}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${styles[variant]} ${className}`}
+      disabled={disabled}
       onClick={onClick}
       type="button"
     >
@@ -28,4 +30,3 @@ export function Button({ children, variant = 'primary', icon: Icon, onClick, cla
     </button>
   )
 }
-

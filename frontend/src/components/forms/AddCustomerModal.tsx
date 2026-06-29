@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createCustomer } from '../../lib/api'
 import type { Customer, CustomerType } from '../../lib/api'
+import { firstError, required, validEmail } from '../../lib/validation'
 import { Button, Modal } from '../ui'
 
 export type StoredCustomer = {
@@ -32,6 +33,15 @@ export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; 
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
 
   const submit = async () => {
+    const validationError = firstError([
+      required(form.type, 'Customer type'),
+      required(form.name, 'Customer name'),
+      validEmail(form.email),
+    ])
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -41,6 +51,7 @@ export function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; 
         email: form.email || undefined,
         phone: form.phone || undefined,
         district: form.district || undefined,
+        address: form.address || undefined,
       })
       onCreated?.(customer)
       onClose()

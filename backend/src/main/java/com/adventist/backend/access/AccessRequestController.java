@@ -1,7 +1,9 @@
 package com.adventist.backend.access;
 
+import com.adventist.backend.users.AppUser;
 import com.adventist.backend.users.UserDto;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,12 +29,12 @@ public class AccessRequestController {
     }
 
     @PostMapping("/{id}/approve")
-    UserDto approve(@PathVariable Long id) {
-        return service.approve(id);
+    UserDto approve(@PathVariable Long id, @AuthenticationPrincipal AppUser user) {
+        return service.approve(id, user);
     }
 
     @PostMapping("/{id}/reject")
-    AccessRequestDto reject(@PathVariable Long id) {
-        return service.reject(id);
+    AccessRequestDto reject(@PathVariable Long id, @AuthenticationPrincipal AppUser user) {
+        return service.reject(id, user);
     }
 }

@@ -1,4 +1,6 @@
+export { CustomerOrders } from './CustomerOrders'
 export { DailySummary } from './DailySummary'
+export { FulfillmentBoard } from './FulfillmentBoard'
 export { PointOfSale } from './PointOfSale'
 export { SalesDashboard } from './SalesDashboard'
 export { SalesHistory } from './SalesHistory'
