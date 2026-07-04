@@ -1,6 +1,8 @@
 package com.adventist.backend.customers;
 
 import com.adventist.backend.auth.AuthTokenRepository;
+import com.adventist.backend.auth.AuthChallenge;
+import com.adventist.backend.auth.AuthChallengeRepository;
 import com.adventist.backend.audit.AuditLogRepository;
 import com.adventist.backend.notifications.NotificationRepository;
 import com.adventist.backend.sales.SaleRepository;
@@ -46,6 +48,9 @@ class CustomerRegistrationIntegrationTests {
     private AuthTokenRepository authTokenRepository;
 
     @Autowired
+    private AuthChallengeRepository authChallengeRepository;
+
+    @Autowired
     private AuditLogRepository auditLogRepository;
 
     @Autowired
@@ -60,6 +65,7 @@ class CustomerRegistrationIntegrationTests {
     void setUp() {
         saleRepository.deleteAll();
         authTokenRepository.deleteAll();
+        authChallengeRepository.deleteAll();
         auditLogRepository.deleteAll();
         notificationRepository.deleteAll();
         registrationRepository.deleteAll();
@@ -153,6 +159,16 @@ class CustomerRegistrationIntegrationTests {
             .andReturn();
 
         JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
-        return body.get("token").asText();
+        String challengeId = body.get("challengeId").asText();
+        AuthChallenge challenge = authChallengeRepository.findByChallengeId(challengeId).orElseThrow();
+        String verifyJson = "{\"challengeId\":\"%s\",\"otp\":\"%s\"}".formatted(challengeId, challenge.getOtpCode());
+        var verifyResponse = mockMvc.perform(post("/api/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(verifyJson))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        JsonNode verifiedBody = objectMapper.readTree(verifyResponse.getResponse().getContentAsString());
+        return verifiedBody.get("token").asText();
     }
 }

@@ -1,2 +1,4 @@
 backend/server-*.log
 frontend/server-*.log
+.env
+.env.local

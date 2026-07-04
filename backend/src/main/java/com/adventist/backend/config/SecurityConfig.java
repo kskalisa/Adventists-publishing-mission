@@ -39,11 +39,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/access-requests").permitAll()
+                        .requestMatchers("/api/auth/verify-otp").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/customer-requests").permitAll()
                         .requestMatchers("/api/access-requests/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/customer-requests/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/audit-logs/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/analytics/**").hasAuthority("ROLE_ADMIN")
                         // Ensure user management actions require explicit ROLE_ADMIN authority
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/books/**").hasAnyRole("ADMIN", "INVENTORY_MANAGER")

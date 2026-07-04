@@ -55,6 +55,7 @@ export type User = {
   email: string;
   role: UserRole;
   active: boolean;
+  passwordChangeRequired: boolean;
   createdAt: string;
 };
 
@@ -171,6 +172,107 @@ export type DashboardSummary = {
   outOfStockCount: number;
   lowStockBooks: Book[];
   recentSales: Sale[];
+};
+
+export type NamedMetric = {
+  name: string;
+  count: number;
+  value: number;
+};
+
+export type TimeSeriesPoint = {
+  label: string;
+  value: number;
+  count: number;
+};
+
+export type TitleMetric = {
+  bookId: number;
+  title: string;
+  category: string;
+  unitsSold: number;
+  revenue: number;
+  stockQuantity: number;
+  reorderLevel: number;
+};
+
+export type CustomerMetric = {
+  customerId: number;
+  name: string;
+  type: CustomerType;
+  orderCount: number;
+  revenue: number;
+  outstandingBalance: number;
+};
+
+export type InventoryRisk = {
+  bookId: number;
+  title: string;
+  category: string;
+  stockQuantity: number;
+  reorderLevel: number;
+  unitsSold: number;
+  requestedQuantity: number;
+  riskLevel: "OUT_OF_STOCK" | "LOW_STOCK" | "DEMAND_RISK" | "FAST_MOVING" | "NORMAL";
+  suggestedReorderQuantity: number;
+};
+
+export type DemandMetric = {
+  bookId: number;
+  title: string;
+  customerCount: number;
+  requestedQuantity: number;
+  stockQuantity: number;
+  reorderLevel: number;
+};
+
+export type ProductionMetric = {
+  status: ProductionOrderStatus;
+  orders: number;
+  units: number;
+  estimatedCost: number;
+};
+
+export type AdminAnalyticsSummary = {
+  overview: {
+    totalBooks: number;
+    activeCustomers: number;
+    totalSales: number;
+    openCustomerOrders: number;
+    stockAlerts: number;
+    openBookRequests: number;
+    grossRevenue: number;
+    paidRevenue: number;
+    outstandingBalance: number;
+    cancelledOrRejectedValue: number;
+    averageOrderValue: number;
+    stockValue: number;
+    productionPlannedCost: number;
+    productionReceivedCost: number;
+  };
+  revenueTrend: TimeSeriesPoint[];
+  salesByStatus: NamedMetric[];
+  paymentBreakdown: NamedMetric[];
+  fulfillmentBreakdown: NamedMetric[];
+  customerTypeBreakdown: NamedMetric[];
+  inventoryByCategory: NamedMetric[];
+  topSellingTitles: TitleMetric[];
+  topCustomers: CustomerMetric[];
+  inventoryRisks: InventoryRisk[];
+  reprintDemand: DemandMetric[];
+  productionPipeline: ProductionMetric[];
+  recommendations: string[];
+};
+
+export type AdminAnalyticsFilters = {
+  from?: string;
+  to?: string;
+  category?: string;
+  customerType?: CustomerType | "";
+  saleStatus?: SaleStatus | "";
+  paymentStatus?: PaymentStatus | "";
+  fulfillmentMethod?: FulfillmentMethod | "";
+  productionStatus?: ProductionOrderStatus | "";
 };
 
 export type AdjustmentType =
@@ -300,8 +402,10 @@ export type UpdateUserRequest = {
 };
 
 export type AuthResponse = {
-  user: User;
-  token: string;
+  user: User | null;
+  token: string | null;
+  otpRequired: boolean;
+  challengeId: string | null;
 };
 
 export type AccessRequest = {
@@ -324,8 +428,12 @@ export type CreateAccessRequest = {
   password: string;
 };
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken();
+async function api<T>(
+  path: string,
+  init?: RequestInit,
+  options: { auth?: boolean } = {},
+): Promise<T> {
+  const token = options.auth === false ? null : getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -357,6 +465,18 @@ export const login = (email: string, password: string) =>
   api<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  }, { auth: false });
+
+export const verifyLoginOtp = (challengeId: string, otp: string) =>
+  api<AuthResponse>("/api/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ challengeId, otp }),
+  }, { auth: false });
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api<User>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 
 export const getSessionUser = () => api<User>("/api/auth/me");
@@ -373,7 +493,7 @@ export const registerCustomer = (request: {
   api<CustomerRegistrationDto>("/api/customer-requests", {
     method: "POST",
     body: JSON.stringify(request),
-  });
+  }, { auth: false });
 
 export const listCustomerRegistrations = () =>
   api<CustomerRegistrationDto[]>("/api/customer-requests");
@@ -545,6 +665,15 @@ export const deleteUser = async (id: number) => {
 export const getDashboardSummary = () =>
   api<DashboardSummary>("/api/dashboard");
 
+export const getAdminAnalyticsSummary = (filters: AdminAnalyticsFilters = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, String(value));
+  });
+  const query = params.toString();
+  return api<AdminAnalyticsSummary>(`/api/analytics/admin-summary${query ? `?${query}` : ""}`);
+};
+
 export const listStockAdjustments = () =>
   api<StockAdjustment[]>("/api/inventory/adjustments");
 
@@ -607,6 +736,9 @@ export function getAuthToken() {
 }
 
 export function setCurrentSession(response: AuthResponse) {
+  if (!response.user || !response.token) {
+    throw new Error("Session is missing user or token.");
+  }
   setStoredCurrentUser(response.user);
   window.localStorage.setItem("adventist-auth-token", response.token);
   window.dispatchEvent(new Event("adventist-session-updated"));
@@ -641,3 +773,4 @@ export function formatDate(value: string) {
     minute: "2-digit",
   }).format(new Date(value));
 }
+

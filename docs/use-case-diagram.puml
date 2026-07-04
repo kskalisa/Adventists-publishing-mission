@@ -1,0 +1,232 @@
+@startuml
+title Adventist Bookstore Management System - Use Case Diagram
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+  FontColor #0F172A
+}
+skinparam rectangle {
+  BorderColor #0F172A
+  FontColor #0F172A
+}
+skinparam note {
+  BackgroundColor #FFF7ED
+  BorderColor #FB923C
+  FontColor #7C2D12
+}
+
+actor "Public Visitor" as Visitor
+actor "Authenticated User" as AuthUser
+actor "Customer" as Customer
+actor "Sales Staff" as Sales
+actor "Inventory Manager" as Inventory
+actor "Coordinator" as Coordinator
+actor "System Administrator" as Admin
+
+Customer --|> AuthUser
+Sales --|> AuthUser
+Inventory --|> AuthUser
+Coordinator --|> AuthUser
+Admin --|> AuthUser
+
+rectangle "Adventist Bookstore Management System" as System {
+  package "Public Access" {
+    usecase "View Landing Page" as UC_ViewLanding
+    usecase "Log In" as UC_Login
+    usecase "Register as Customer" as UC_RegisterCustomer
+    usecase "Request Staff Access" as UC_RequestAccess
+  }
+
+  package "Common Authenticated Services" {
+    usecase "Access Role Dashboard" as UC_RoleDashboard
+    usecase "View Notifications" as UC_ViewNotifications
+    usecase "Mark Notification as Read" as UC_ReadNotification
+    usecase "Manage Profile" as UC_Profile
+  }
+
+  package "Customer Services" {
+    usecase "Browse Book Catalog" as UC_BrowseBooks
+    usecase "Place Book Order" as UC_PlaceOrder
+    usecase "Choose Pickup or Delivery" as UC_FulfillmentChoice
+    usecase "Track My Orders" as UC_TrackOrders
+    usecase "Update My Order" as UC_UpdateOrder
+    usecase "Cancel My Order" as UC_CancelOrder
+    usecase "Hide Completed or Cancelled Order" as UC_HideOrder
+    usecase "Request Out-of-Stock Book" as UC_RequestBook
+    usecase "View My Book Requests" as UC_MyBookRequests
+  }
+
+  package "Sales Operations" {
+    usecase "Open Sales Dashboard" as UC_SalesDashboard
+    usecase "Process Point-of-Sale Sale" as UC_POS
+    usecase "Select Customer" as UC_SelectCustomer
+    usecase "Select Books and Quantities" as UC_SelectItems
+    usecase "Record Payment Method" as UC_RecordPayment
+    usecase "Manage Customer Records" as UC_ManageCustomers
+    usecase "Review Sales History" as UC_SalesHistory
+    usecase "Review Daily Sales Summary" as UC_DailySummary
+    usecase "Review Customer Orders" as UC_ReviewOrders
+    usecase "Update Order or Fulfillment Status" as UC_UpdateFulfillment
+  }
+
+  package "Inventory Management" {
+    usecase "View Inventory Dashboard" as UC_InventoryDashboard
+    usecase "Manage Book Catalog" as UC_ManageBooks
+    usecase "Create Book" as UC_CreateBook
+    usecase "Update Book" as UC_UpdateBook
+    usecase "Delete Book" as UC_DeleteBook
+    usecase "Record Stock Adjustment" as UC_StockAdjustment
+    usecase "Monitor Low Stock Alerts" as UC_LowStock
+    usecase "Review Reprint Alerts" as UC_ReprintAlerts
+    usecase "Review Customer Book Demand" as UC_BookDemand
+    usecase "Generate Inventory Report" as UC_InventoryReport
+  }
+
+  package "Coordination and Production" {
+    usecase "Review Coordinator Dashboard" as UC_CoordDashboard
+    usecase "Analyze Sales Performance" as UC_AnalyzeSales
+    usecase "Plan Reprints" as UC_PlanReprints
+    usecase "Manage Production Orders" as UC_ManageProduction
+    usecase "Create Production Order" as UC_CreateProduction
+    usecase "Update Production Order" as UC_UpdateProduction
+    usecase "Cancel Production Order" as UC_CancelProduction
+    usecase "Track Production Budget" as UC_TrackBudget
+    usecase "Generate Coordinator Reports" as UC_CoordReports
+  }
+
+  package "Administration" {
+    usecase "View Admin Dashboard" as UC_AdminDashboard
+    usecase "Approve or Reject Customer Registration" as UC_ApproveCustomers
+    usecase "Approve or Reject Staff Access" as UC_ApproveAccess
+    usecase "Manage Users" as UC_ManageUsers
+    usecase "Create User" as UC_CreateUser
+    usecase "Edit User" as UC_EditUser
+    usecase "Lock or Unlock User" as UC_LockUser
+    usecase "Delete User" as UC_DeleteUser
+    usecase "Review Audit Logs" as UC_AuditLogs
+    usecase "Review Management Reports" as UC_AdminReports
+  }
+
+  package "System Automation" {
+    usecase "Validate Role-Based Access" as UC_RBAC
+    usecase "Persist Transaction Data" as UC_Persist
+    usecase "Update Book Stock" as UC_UpdateStock
+    usecase "Create Notifications" as UC_CreateNotifications
+    usecase "Write Audit Log" as UC_WriteAudit
+  }
+}
+
+Visitor --> UC_ViewLanding
+Visitor --> UC_Login
+Visitor --> UC_RegisterCustomer
+Visitor --> UC_RequestAccess
+
+AuthUser --> UC_RoleDashboard
+AuthUser --> UC_ViewNotifications
+AuthUser --> UC_Profile
+UC_ViewNotifications .> UC_ReadNotification : <<include>>
+UC_RoleDashboard .> UC_RBAC : <<include>>
+
+Customer --> UC_BrowseBooks
+Customer --> UC_PlaceOrder
+Customer --> UC_TrackOrders
+Customer --> UC_RequestBook
+Customer --> UC_MyBookRequests
+UC_PlaceOrder .> UC_Login : <<include>>
+UC_PlaceOrder .> UC_BrowseBooks : <<include>>
+UC_PlaceOrder .> UC_FulfillmentChoice : <<include>>
+UC_PlaceOrder .> UC_Persist : <<include>>
+UC_PlaceOrder .> UC_CreateNotifications : <<include>>
+UC_UpdateOrder .> UC_TrackOrders : <<extend>>
+UC_CancelOrder .> UC_TrackOrders : <<extend>>
+UC_HideOrder .> UC_TrackOrders : <<extend>>
+UC_RequestBook .> UC_CreateNotifications : <<include>>
+
+Sales --> UC_SalesDashboard
+Sales --> UC_POS
+Sales --> UC_ManageCustomers
+Sales --> UC_SalesHistory
+Sales --> UC_DailySummary
+Sales --> UC_ReviewOrders
+Sales --> UC_UpdateFulfillment
+UC_POS .> UC_SelectCustomer : <<include>>
+UC_POS .> UC_SelectItems : <<include>>
+UC_POS .> UC_RecordPayment : <<include>>
+UC_POS .> UC_Persist : <<include>>
+UC_POS .> UC_UpdateStock : <<include>>
+UC_UpdateFulfillment .> UC_CreateNotifications : <<include>>
+
+Inventory --> UC_InventoryDashboard
+Inventory --> UC_ManageBooks
+Inventory --> UC_StockAdjustment
+Inventory --> UC_LowStock
+Inventory --> UC_ReprintAlerts
+Inventory --> UC_BookDemand
+Inventory --> UC_InventoryReport
+Inventory --> UC_ManageProduction
+UC_ManageBooks .> UC_CreateBook : <<include>>
+UC_ManageBooks .> UC_UpdateBook : <<include>>
+UC_ManageBooks .> UC_DeleteBook : <<extend>>
+UC_StockAdjustment .> UC_UpdateStock : <<include>>
+UC_ReprintAlerts .> UC_PlanReprints : <<extend>>
+
+Coordinator --> UC_CoordDashboard
+Coordinator --> UC_AnalyzeSales
+Coordinator --> UC_PlanReprints
+Coordinator --> UC_ManageProduction
+Coordinator --> UC_TrackBudget
+Coordinator --> UC_CoordReports
+UC_PlanReprints .> UC_BookDemand : <<include>>
+UC_PlanReprints .> UC_LowStock : <<include>>
+UC_ManageProduction .> UC_CreateProduction : <<include>>
+UC_ManageProduction .> UC_UpdateProduction : <<include>>
+UC_CancelProduction .> UC_ManageProduction : <<extend>>
+UC_ManageProduction .> UC_Persist : <<include>>
+
+Admin --> UC_AdminDashboard
+Admin --> UC_ApproveCustomers
+Admin --> UC_ApproveAccess
+Admin --> UC_ManageUsers
+Admin --> UC_ManageBooks
+Admin --> UC_ReviewOrders
+Admin --> UC_ManageProduction
+Admin --> UC_AdminReports
+Admin --> UC_AuditLogs
+UC_ApproveCustomers .> UC_CreateNotifications : <<include>>
+UC_ApproveCustomers .> UC_WriteAudit : <<include>>
+UC_ApproveAccess .> UC_CreateUser : <<include>>
+UC_ApproveAccess .> UC_WriteAudit : <<include>>
+UC_ManageUsers .> UC_CreateUser : <<include>>
+UC_ManageUsers .> UC_EditUser : <<include>>
+UC_ManageUsers .> UC_LockUser : <<include>>
+UC_DeleteUser .> UC_ManageUsers : <<extend>>
+UC_ManageUsers .> UC_WriteAudit : <<include>>
+
+UC_Login .> UC_RBAC : <<include>>
+UC_CreateBook .> UC_WriteAudit : <<include>>
+UC_UpdateBook .> UC_WriteAudit : <<include>>
+UC_DeleteBook .> UC_WriteAudit : <<include>>
+UC_UpdateStock .> UC_WriteAudit : <<include>>
+
+note right of Admin
+  Admin has the widest operational authority:
+  approvals, user governance, catalog control,
+  sales visibility, production visibility, reports,
+  and audit monitoring.
+end note
+
+note bottom of System
+  Main protected roles are ADMIN, SALES, INVENTORY_MANAGER,
+  COORDINATOR, and CUSTOMER. Public users may only log in,
+  submit customer registration, or request staff access.
+end note
+
+@enduml

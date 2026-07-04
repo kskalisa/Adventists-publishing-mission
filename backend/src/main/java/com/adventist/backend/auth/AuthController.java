@@ -24,6 +24,16 @@ public class AuthController {
         return authService.login(request.email(), request.password());
     }
 
+    @PostMapping("/verify-otp")
+    AuthResponse verifyOtp(@RequestBody LoginRequest request) {
+        return authService.verifyOtp(request.challengeId(), request.otp());
+    }
+
+    @PostMapping("/change-password")
+    UserDto changePassword(@RequestBody ChangePasswordRequest request, @AuthenticationPrincipal AppUser user) {
+        return authService.changePassword(user, request.currentPassword(), request.newPassword());
+    }
+
     @GetMapping("/me")
     UserDto currentUser(@AuthenticationPrincipal AppUser user) {
         return UserDto.from(user);

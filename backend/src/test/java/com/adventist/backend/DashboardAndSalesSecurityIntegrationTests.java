@@ -1,6 +1,8 @@
 package com.adventist.backend;
 
 import com.adventist.backend.auth.AuthTokenRepository;
+import com.adventist.backend.auth.AuthChallenge;
+import com.adventist.backend.auth.AuthChallengeRepository;
 import com.adventist.backend.audit.AuditLogRepository;
 import com.adventist.backend.books.Book;
 import com.adventist.backend.books.BookRepository;
@@ -47,6 +49,9 @@ public class DashboardAndSalesSecurityIntegrationTests {
     private AuthTokenRepository authTokenRepository;
 
     @Autowired
+    private AuthChallengeRepository authChallengeRepository;
+
+    @Autowired
     private AuditLogRepository auditLogRepository;
 
     @Autowired
@@ -74,6 +79,7 @@ public class DashboardAndSalesSecurityIntegrationTests {
     @BeforeEach
     void setUp() throws Exception {
         authTokenRepository.deleteAll();
+        authChallengeRepository.deleteAll();
         auditLogRepository.deleteAll();
         saleRepository.deleteAll();
         productionOrderRepository.deleteAll();
@@ -85,23 +91,8 @@ public class DashboardAndSalesSecurityIntegrationTests {
         userRepository.save(new AppUser("Admin User", "admin@test.rw", UserRole.ADMIN, passwordEncoder.encode("admin123")));
         userRepository.save(new AppUser("Inventory User", "inventory@test.rw", UserRole.INVENTORY_MANAGER, passwordEncoder.encode("inventory123")));
 
-        String loginJson = "{\"email\":\"admin@test.rw\",\"password\":\"admin123\"}";
-        MvcResult response = mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(loginJson))
-            .andExpect(status().isOk())
-            .andReturn();
-
-        JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
-        adminToken = body.get("token").asText();
-
-        String inventoryLoginJson = "{\"email\":\"inventory@test.rw\",\"password\":\"inventory123\"}";
-        MvcResult inventoryResponse = mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(inventoryLoginJson))
-            .andExpect(status().isOk())
-            .andReturn();
-        inventoryToken = objectMapper.readTree(inventoryResponse.getResponse().getContentAsString()).get("token").asText();
+        adminToken = obtainToken("admin@test.rw", "admin123");
+        inventoryToken = obtainToken("inventory@test.rw", "inventory123");
     }
 
     @Test
@@ -241,5 +232,25 @@ public class DashboardAndSalesSecurityIntegrationTests {
                 .content(createJson))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.detail").value("expectedDeliveryDate cannot be in the past"));
+    }
+
+    private String obtainToken(String email, String password) throws Exception {
+        String loginJson = "{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password);
+        MvcResult response = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginJson))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+        String challengeId = body.get("challengeId").asText();
+        AuthChallenge challenge = authChallengeRepository.findByChallengeId(challengeId).orElseThrow();
+        String verifyJson = "{\"challengeId\":\"%s\",\"otp\":\"%s\"}".formatted(challengeId, challenge.getOtpCode());
+        MvcResult verifyResponse = mockMvc.perform(post("/api/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(verifyJson))
+            .andExpect(status().isOk())
+            .andReturn();
+        return objectMapper.readTree(verifyResponse.getResponse().getContentAsString()).get("token").asText();
     }
 }

@@ -2,12 +2,14 @@ import { ArrowLeft, CheckCircle2, Eye, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import {
+  changePassword,
   login,
   requestAccess,
   roleDashboards,
   setCurrentSession,
+  verifyLoginOtp,
 } from "../../lib/api";
-import type { CreateAccessRequest } from "../../lib/api";
+import type { AuthResponse, CreateAccessRequest } from "../../lib/api";
 import type { Navigate } from "../../types/navigation";
 import { Logo } from "../../components/ui";
 
@@ -98,8 +100,18 @@ function AuthBrand() {
 export function Login({ onNavigate }: { onNavigate: Navigate }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [challengeId, setChallengeId] = useState("");
+  const [pendingSession, setPendingSession] = useState<AuthResponse | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const stage = pendingSession?.user?.passwordChangeRequired
+    ? "password"
+    : challengeId
+      ? "otp"
+      : "credentials";
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,7 +119,49 @@ export function Login({ onNavigate }: { onNavigate: Navigate }) {
     setError("");
 
     try {
+      if (stage === "otp") {
+        const session = await verifyLoginOtp(challengeId, otp);
+        if (!session.user || !session.token) {
+          throw new Error("Verification did not return a session.");
+        }
+        if (session.user.passwordChangeRequired) {
+          setPendingSession(session);
+          return;
+        }
+        setCurrentSession(session);
+        onNavigate(roleDashboards[session.user.role]);
+        return;
+      }
+
+      if (stage === "password") {
+        if (!pendingSession) {
+          throw new Error("Password change session expired. Please sign in again.");
+        }
+        if (newPassword.length < 8) {
+          throw new Error("New password must be at least 8 characters.");
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error("Passwords do not match.");
+        }
+        if (!pendingSession.token) {
+          throw new Error("Password change session expired. Please sign in again.");
+        }
+        window.localStorage.setItem("adventist-auth-token", pendingSession.token);
+        const user = await changePassword(password, newPassword);
+        const completedSession = { ...pendingSession, user };
+        setCurrentSession(completedSession);
+        onNavigate(roleDashboards[user.role]);
+        return;
+      }
+
       const session = await login(email, password);
+      if (session.otpRequired && session.challengeId) {
+        setChallengeId(session.challengeId);
+        return;
+      }
+      if (!session.user || !session.token) {
+        throw new Error("Login did not return a session.");
+      }
       setCurrentSession(session);
       onNavigate(roleDashboards[session.user.role]);
     } catch (error) {
@@ -129,32 +183,71 @@ export function Login({ onNavigate }: { onNavigate: Navigate }) {
           Back to Home
         </button>
         <AuthBrand />
-        <h2 className="text-4xl font-bold">Welcome Back</h2>
+        <h2 className="text-4xl font-bold">
+          {stage === "otp" ? "Verify Login" : stage === "password" ? "Change Password" : "Welcome Back"}
+        </h2>
         <p className="mt-4 text-slate-500">
-          Sign in to access your dashboard and manage operations
+          {stage === "otp"
+            ? "Enter the one-time code sent to your registered email."
+            : stage === "password"
+              ? "Set a new password before opening your dashboard."
+              : "Sign in to access your dashboard and manage operations"}
         </p>
-        <Field
-          label="Email Address"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-          placeholder="you@example.com"
-        />
-        <Field
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          icon={Eye}
-          type="password"
-          autoComplete="current-password"
-          placeholder="Enter your password"
-        />
+        {stage === "credentials" && (
+          <>
+            <Field
+              label="Email Address"
+              value={email}
+              onChange={setEmail}
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
+            <Field
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              icon={Eye}
+              type="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+            />
+          </>
+        )}
+        {stage === "otp" && (
+          <Field
+            label="Verification Code"
+            value={otp}
+            onChange={setOtp}
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
+          />
+        )}
+        {stage === "password" && (
+          <>
+            <Field
+              label="New Password"
+              value={newPassword}
+              onChange={setNewPassword}
+              type="password"
+              autoComplete="new-password"
+              placeholder="Create a new password"
+            />
+            <Field
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              type="password"
+              autoComplete="new-password"
+              placeholder="Repeat your new password"
+            />
+          </>
+        )}
         {error && (
           <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </p>
         )}
-        <div className="my-5 flex items-center justify-between text-sm">
+        {stage === "credentials" && <div className="my-5 flex items-center justify-between text-sm">
           <label className="flex items-center gap-2 text-slate-500">
             <input type="checkbox" className="size-5 rounded" />
             Remember me
@@ -162,15 +255,21 @@ export function Login({ onNavigate }: { onNavigate: Navigate }) {
           <button className="font-medium text-blue-950" type="button">
             Forgot Password?
           </button>
-        </div>
+        </div>}
         <button
           className="h-14 w-full rounded-md bg-[#0d2b49] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           disabled={submitting}
           type="submit"
         >
-          {submitting ? "Signing in..." : "Sign In"}
+          {submitting
+            ? "Working..."
+            : stage === "otp"
+              ? "Verify Code"
+              : stage === "password"
+                ? "Change Password"
+                : "Sign In"}
         </button>
-        <div className="my-10 flex items-center gap-5 text-slate-400">
+        {stage === "credentials" && <><div className="my-10 flex items-center gap-5 text-slate-400">
           <span className="h-px flex-1 bg-slate-200" />
           or
           <span className="h-px flex-1 bg-slate-200" />
@@ -179,12 +278,12 @@ export function Login({ onNavigate }: { onNavigate: Navigate }) {
           Don't have an account?{" "}
           <button
             className="font-semibold text-blue-950"
-            onClick={() => onNavigate("access")}
+            onClick={() => onNavigate("register")}
             type="button"
           >
-            Request Access
+            Register as Customer
           </button>
-        </p>
+        </p></>}
       </form>
     </AuthLayout>
   );

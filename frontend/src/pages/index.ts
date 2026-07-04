@@ -16,7 +16,7 @@ export {
   ProductionOrdersScreen,
 } from "./coordinator";
 export { InventoryManagerDashboard } from "./inventory-manager";
-export { Landing, Login, RequestAccess, Register } from "./public";
+export { Landing, Login, Register } from "./public";
 export {
   BrowseBooks,
   CustomerBookRequests,

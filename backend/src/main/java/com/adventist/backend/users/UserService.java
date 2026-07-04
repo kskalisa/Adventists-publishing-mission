@@ -2,6 +2,8 @@ package com.adventist.backend.users;
 
 import com.adventist.backend.audit.AuditService;
 import com.adventist.backend.common.ResourceNotFoundException;
+import com.adventist.backend.notifications.EmailNotificationService;
+import com.adventist.backend.notifications.NotificationRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,11 +15,15 @@ public class UserService {
     private final AppUserRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final EmailNotificationService emailNotificationService;
+    private final NotificationRepository notificationRepository;
 
-    public UserService(AppUserRepository repository, PasswordEncoder passwordEncoder, AuditService auditService) {
+    public UserService(AppUserRepository repository, PasswordEncoder passwordEncoder, AuditService auditService, EmailNotificationService emailNotificationService, NotificationRepository notificationRepository) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.emailNotificationService = emailNotificationService;
+        this.notificationRepository = notificationRepository;
     }
 
     public List<UserDto> listUsers() {
@@ -36,7 +42,9 @@ public class UserService {
             throw new IllegalArgumentException("email is already registered");
         }
         AppUser user = new AppUser(request.name().trim(), request.email().trim().toLowerCase(), request.role(), passwordEncoder.encode(request.password()));
+        user.setPasswordChangeRequired(true);
         AppUser saved = repository.save(user);
+        emailNotificationService.sendCredentials(saved, request.password());
         auditService.record(actor, "USER_CREATED", "USER", saved.getId(), "Created " + saved.getRole() + " user " + saved.getEmail());
         return UserDto.from(saved);
     }
@@ -85,6 +93,7 @@ public class UserService {
             throw new IllegalArgumentException("you cannot delete your own account");
         }
         auditService.record(actor, "USER_DELETED", "USER", user.getId(), "Deleted user " + user.getEmail());
+        notificationRepository.deleteByUser(user);
         repository.delete(user);
     }
 

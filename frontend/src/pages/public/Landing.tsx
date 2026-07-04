@@ -158,10 +158,10 @@ export function Landing({ onNavigate }: { onNavigate: Navigate }) {
         <div className="mt-10 flex items-center justify-center gap-4">
           <button
             className="rounded bg-white px-6 py-3 text-sm font-semibold text-[#0d2b49]"
-            onClick={() => onNavigate("access")}
+            onClick={() => onNavigate("register")}
             type="button"
           >
-            Request System Access
+            Register as Customer
           </button>
           <button
             className="rounded border border-white/30 bg-transparent px-6 py-3 text-sm font-semibold text-white"

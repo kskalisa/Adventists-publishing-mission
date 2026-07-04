@@ -4,7 +4,6 @@ export type Screen =
   | "landing"
   | "login"
   | "register"
-  | "access"
   | "dashboard"
   | "inventory"
   | "sales"

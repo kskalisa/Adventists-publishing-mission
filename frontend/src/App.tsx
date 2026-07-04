@@ -20,7 +20,6 @@ import {
   Register,
   PointOfSale,
   Reports,
-  RequestAccess,
   Sales,
   SalesDashboard,
   SalesHistory,
@@ -107,8 +106,6 @@ function App() {
   if (screen === "landing") return <Landing onNavigate={navigate} />;
   if (screen === "login") return <Login onNavigate={navigate} />;
   if (screen === "register") return <Register onNavigate={navigate} />;
-
-  if (screen === "access") return <RequestAccess onNavigate={navigate} />;
   if (!authChecked && isProtectedScreen(screen)) return null;
   if (!currentUser) return <Login onNavigate={navigate} />;
   if (!canAccess(currentUser.role, screen)) return null;
@@ -197,7 +194,7 @@ function App() {
 }
 
 function isProtectedScreen(screen: Screen) {
-  return !["landing", "login", "register", "access"].includes(screen);
+  return !["landing", "login", "register"].includes(screen);
 }
 
 function canAccess(role: UserRole, screen: Screen) {
